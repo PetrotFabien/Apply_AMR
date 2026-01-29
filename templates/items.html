@@ -1,0 +1,48 @@
+
+{% extends "base.html" %}
+{% block title %}Articles – Raspi Stock{% endblock %}
+{% block content %}
+<h2>Articles</h2>
+
+<form method="get" class="row">
+  <input type="text" name="q" placeholder="Recherche (SKU, description, avis, commande, BL)" value="{{ q or '' }}">
+  <button type="submit">Rechercher</button>
+</form>
+
+<h3>Créer un article</h3>
+<form method="post" class="row">
+  <input name="sku" placeholder="SKU" required>
+  <input name="description" placeholder="Description">
+  <input name="avis_no" placeholder="Numéro d'avis">
+  <input name="order_no" placeholder="Numéro de commande">
+  <input name="bl_no" placeholder="Numéro de BL">
+  <button type="submit">Créer</button>
+</form>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th><th>SKU</th><th>Description</th>
+      <th>Avis</th><th>Commande</th><th>BL</th>
+      <th>Statut</th><th>Emplacement</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for it in items %}
+      <tr>
+        <td>{{ it['id'] }}</td>
+        <td>{{ it['sku'] }}</td>
+        <td>{{ it['description'] or '' }}</td>
+        <td>{{ it['avis_no'] or '—' }}</td>
+        <td>{{ it['order_no'] or '—' }}</td>
+        <td>{{ it['bl_no'] or '—' }}</td>
+        <td>{{ it['status'] }}</td>
+        <td>{{ it['loc_code'] or '—' }}</td>
+        <td><a href="{{ url_for('item_detail', item_id=it['id']) }}">Détails</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="9" class="muted">Aucun résultat.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

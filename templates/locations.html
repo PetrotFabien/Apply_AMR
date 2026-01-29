@@ -1,0 +1,27 @@
+
+{% extends "base.html" %}
+{% block title %}Emplacements – Raspi Stock{% endblock %}
+{% block content %}
+<h2>Emplacements</h2>
+<p>
+  Filtre :
+  <a href="{{ url_for('locations') }}">Tous</a> |
+  <a href="{{ url_for('locations', kind='SOL') }}">Sol</a> |
+  <a href="{{ url_for('locations', kind='ETAGERE') }}">Etagères</a> |
+  <a href="{{ url_for('locations', kind='POSTE') }}">Postes</a>
+</p>
+<table class="table">
+  <thead><tr><th>Code</th><th>Nom</th><th>Type</th><th>Capacité</th><th>Occup.</th></tr></thead>
+  <tbody>
+    {% for l in locations %}
+      <tr>
+        <td>{{ l['code'] }}</td>
+        <td>{{ l['name'] }}</td>
+        <td>{{ l['kind'] }}</td>
+        <td>{{ l['capacity'] if l['capacity'] is not none else '∞' }}</td>
+        <td>{{ l['occ'] }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

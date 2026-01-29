@@ -1,0 +1,33 @@
+
+{% extends "base.html" %}
+{% block title %}Inspection – Raspi Stock{% endblock %}
+{% block content %}
+<h2>🔎 Inspection</h2>
+<table class="table">
+  <thead><tr><th>ID</th><th>SKU</th><th>Photo</th><th>Action</th></tr></thead>
+  <tbody>
+  {% for it in items %}
+    <tr>
+      <td>{{ it['id'] }}</td>
+      <td>{{ it['sku'] }}</td>
+      <td>
+        {% if it['photo_path'] %}
+          <img src="{{ url_for('uploads', filename=it['photo_path']) }}" alt="Photo" style="max-height:64px">
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </td>
+      <td>
+        <form method="post" class="inline">
+          <input type="hidden" name="item_id" value="{{ it['id'] }}">
+          <button type="submit" name="result" value="OK">✔ OK</button>
+          <button type="submit" name="result" value="NOK" class="danger">✖ NOK</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" class="muted">Aucun article.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

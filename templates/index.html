@@ -1,0 +1,44 @@
+
+{% extends "base.html" %}
+{% block title %}Dashboard – Raspi Stock{% endblock %}
+{% block content %}
+<h2>Dashboard</h2>
+<div class="cards">
+  <div class="card">
+    <h3>Sol</h3>
+    <p><strong>{{ kpi['SOL']['occupied'] }}</strong> / {{ kpi['SOL']['total'] }} occupés</p>
+    <p class="muted">{{ kpi['SOL']['free'] }} libres</p>
+  </div>
+  <div class="card">
+    <h3>Etagères</h3>
+    <p><strong>{{ kpi['ETAGERE']['occupied'] }}</strong> / {{ kpi['ETAGERE']['total'] }} occupés</p>
+    <p class="muted">{{ kpi['ETAGERE']['free'] }} libres</p>
+  </div>
+  <div class="card">
+    <h3>Statuts</h3>
+    <ul class="compact">
+      {% for row in statuses %}
+        <li>{{ row['status'] }} : {{ row['c'] }}</li>
+      {% else %}
+        <li>Aucun article.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+<div class="grid2">
+  <div>
+    <h3>Flux de travail</h3>
+    <ul>
+      <li><a href="{{ url_for('work_photo') }}">📷 Poste Photo</a></li>
+      <li><a href="{{ url_for('work_inspection') }}">🔎 Inspection</a></li>
+      <li><a href="{{ url_for('work_emballage') }}">📦 Emballage</a></li>
+    </ul>
+  </div>
+  <div>
+    <h3>Accès rapide</h3>
+    <p><a href="{{ url_for('items') }}">Créer / Rechercher des articles</a></p>
+    <p><a href="{{ url_for('locations') }}">Voir tous les emplacements</a></p>
+  </div>
+</div>
+{% endblock %}

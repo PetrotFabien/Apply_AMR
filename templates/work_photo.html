@@ -1,0 +1,28 @@
+
+{% extends "base.html" %}
+{% block title %}Poste Photo – Raspi Stock{% endblock %}
+{% block content %}
+<h2>📷 Poste Photo</h2>
+<p>Articles en attente / en cours de photo.</p>
+<table class="table">
+  <thead><tr><th>ID</th><th>SKU</th><th>Statut</th><th>Emplacement</th><th>Action</th></tr></thead>
+  <tbody>
+  {% for it in items %}
+    <tr>
+      <td>{{ it['id'] }}</td>
+      <td>{{ it['sku'] }}</td>
+      <td>{{ it['status'] }}</td>
+      <td>{{ it['loc_code'] or '—' }}</td>
+      <td>
+        <form method="post" action="{{ url_for('send_to_photo', item_id=it['id']) }}" class="inline">
+          <button type="submit">Envoyer au poste</button>
+        </form>
+        <a href="{{ url_for('item_detail', item_id=it['id']) }}">Détails / Upload</a>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="muted">Aucun article.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

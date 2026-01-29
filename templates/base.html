@@ -1,0 +1,41 @@
+
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Raspi Stock{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="wrap">
+    <h1>📦 Raspi Stock</h1>
+    <nav>
+      <a href="{{ url_for('index') }}">Dashboard</a>
+      <a href="{{ url_for('items') }}">Articles</a>
+      <a href="{{ url_for('locations') }}">Emplacements</a>
+      <span>|</span>
+      <a href="{{ url_for('work_photo') }}">Poste Photo</a>
+      <a href="{{ url_for('work_inspection') }}">Inspection</a>
+      <a href="{{ url_for('work_emballage') }}">Emballage</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flash">
+          {% for cat, msg in messages %}
+            <li class="{{ cat }}">{{ msg }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="wrap">
+    <small>Local • Flask + SQLite • {{ request.path }}</small>
+  </footer>
+</body>
+</html>
