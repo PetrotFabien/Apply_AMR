@@ -18,9 +18,10 @@
       <a href="{{ url_for('work_photo') }}">Poste Photo</a>
       <a href="{{ url_for('work_inspection') }}">Inspection</a>
       <a href="{{ url_for('work_emballage') }}">Emballage</a>
+      <span>|</span>
+      <a href="{{ url_for('mir_dashboard') }}">MiR</a>
     </nav>
   </header>
-
   <main class="wrap">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
@@ -33,7 +34,6 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
-
   <footer class="wrap">
     <small>Local • Flask + SQLite • {{ request.path }}</small>
   </footer>
