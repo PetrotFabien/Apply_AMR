@@ -1,0 +1,62 @@
+
+{% extends "base.html" %}
+{% block title %}MiR – Dashboard{% endblock %}
+{% block content %}
+<h2>🤖 MiR – Dashboard</h2>
+<div class="cards">
+  <div class="card">
+    <h3>État robot</h3>
+    <p><strong>Nom :</strong> <span id="robot_name">—</span></p>
+    <p><strong>État :</strong> <span id="state_text">—</span></p>
+    <p><strong>Mission :</strong> <span id="mission_text">—</span></p>
+    <p><strong>Batterie :</strong> <span id="battery">—</span>%</p>
+    <p><strong>Pose :</strong> x=<span id="pos_x">—</span>, y=<span id="pos_y">—</span>, θ=<span id="theta">—</span></p>
+  </div>
+  <div class="card">
+    <h3>Missions disponibles</h3>
+    <ul id="missions">Chargement…</ul>
+  </div>
+</div>
+<script>
+async function fetchStatus(){
+  try{
+    const r = await fetch('/api/mir/status');
+    const j = await r.json();
+    document.getElementById('robot_name').textContent  = j.robot_name || '—';
+    document.getElementById('state_text').textContent  = j.state_text || '—';
+    document.getElementById('mission_text').textContent= j.mission_text || '—';
+    document.getElementById('battery').textContent     = (j.battery_percentage ?? '—');
+    const p = j.position || {}; 
+    document.getElementById('pos_x').textContent = (typeof p.x==='number')?p.x.toFixed(2):'—';
+    document.getElementById('pos_y').textContent = (typeof p.y==='number')?p.y.toFixed(2):'—';
+    document.getElementById('theta').textContent = (typeof p.orientation==='number')?p.orientation.toFixed(2):'—';
+  }catch(e){}
+}
+async function fetchMissions(){
+  try{
+    const r = await fetch('/api/mir/missions');
+    const j = await r.json();
+    const ul = document.getElementById('missions');
+    ul.innerHTML='';
+    (j.missions||[]).forEach(m=>{
+      const li=document.createElement('li');
+      li.textContent = `${m.name} — ${m.guid}`;
+      const btn=document.createElement('button');
+      btn.textContent='Lancer';
+      btn.onclick=async()=>{
+        await fetch(`/api/mir/mission/${m.guid}`,{method:'POST'});
+        alert('Mission envoyée');
+      };
+      li.appendChild(document.createTextNode(' '));
+      li.appendChild(btn);
+      ul.appendChild(li);
+    });
+  }catch(e){
+    document.getElementById('missions').textContent='Erreur de chargement';
+  }
+}
+fetchStatus();fetchMissions();
+setInterval(fetchStatus, 2000);
+setInterval(fetchMissions, 15000);
+</script>
+{% endblock %}

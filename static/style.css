@@ -1,8 +1,5 @@
 
-:root {
-  --bg: #0f172a; --card: #111827; --text: #e5e7eb; --muted: #9ca3af;
-  --accent: #22c55e; --danger: #ef4444; --border: #334155;
-}
+:root { --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#22c55e; --danger:#ef4444; --border:#334155; }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
 .wrap{max-width:1000px;margin:0 auto;padding:1rem}
