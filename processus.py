@@ -5,22 +5,19 @@ from typing import Optional, Tuple, List
 class Item:
     id: int
     sku: str
-    size: Optional[str]   # 'GRAND' | 'PETIT' | None
-    status: str           # RECU, PHOTO, INSPECTION, EMBALLAGE, STOCK, NOGO
+    size: Optional[str]
+    status: str
     location_code: Optional[str]
 
 @dataclass
 class Location:
     id: int
-    code: str             # e.g. S-A1, POSTE-PHOTO, ETAGERE-1-A
-    kind: str             # 'SOL' | 'POSTE' | 'ETAGERE'
+    code: str
+    kind: str
     capacity: Optional[int]
-    size: Optional[str]   # for SOL: 'GRAND'|'PETIT', else None
+    size: Optional[str]
 
 def can_move(item: Item, location: Location, occupied_count: int = 0) -> Tuple[bool, str]:
-    # NOGO strict
-    if location.code.startswith('ETAGERE-3-') and item.status != 'NOGO':
-        return False, "Seuls les items en statut NOGO peuvent être placés sur l'étagère 3."
     if location.capacity is not None and occupied_count >= location.capacity:
         return False, f"{location.code} est déjà occupé"
     if location.kind == 'SOL':

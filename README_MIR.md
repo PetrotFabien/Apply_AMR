@@ -1,1 +1,1 @@
-# Raspi Stock – Solution complète normalisée (NOGO strict, health, actions, normalisation étagères + filtres)
+# Raspi Stock – Solution complète (Processus séparé + MiR + Migration)

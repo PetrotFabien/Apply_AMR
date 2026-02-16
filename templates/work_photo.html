@@ -1,1 +1,71 @@
-{% extends 'base.html' %}{% block title %}Poste Photo – Raspi Stock{% endblock %}{% block content %}<h2>📷 Poste Photo</h2><table class='table'><thead><tr><th>ID</th><th>SKU</th><th>Statut</th><th>Emplacement</th><th>Action</th></tr></thead><tbody>{% for it in items %}<tr><td>{{ it['id'] }}</td><td>{{ it['sku'] }}</td><td>{{ it['status'] }}</td><td>{{ it['loc_code'] or '—' }}</td><td><form method='post' action='{{ url_for('send_to_photo', item_id=it['id']) }}' class='inline'><button type='submit'>Envoyer au poste</button></form><a href='{{ url_for('item_detail', item_id=it['id']) }}'>Détails/Upload</a></td></tr>{% else %}<tr><td colspan='5' class='muted'>Aucun article.</td></tr>{% endfor %}</tbody></table>{% endblock %}
+{% extends 'base.html' %}{% block title %}Poste Photo – Raspi Stock{% endblock %}{% block content %}<h2>📷 Poste Photo</h2><table class='table'><thead><tr><th>ID</th><th>SKU</th><th>Statut</th><th>Emplacement</th><th>Action</th></tr></thead><tbody>{% for it in items %}<tr><td>{{ it['id'] }}</td><td>{{ it['sku'] }}</td><td>{{ it['status'] }}</td><td>{{ it['loc_code'] or '—' }}</td><td><form method='post' action='{{ url_for('send_to_photo', item_id=it['id']) }}' class='inline'><button type='submit'>Envoyer au poste</button></form><a href='{{ url_for('item_detail', item_id=it['id']) }}'>Détails/Upload</a></td></tr>{% else %}<tr><td colspan='5' class='muted'>Aucun article.</td></tr>{% endfor %}</tbody></table>{% endblock %}{% extends 'base.html' %}
+{% block title %}Poste Photo – Raspi Stock{% endblock %}
+{% block content %}
+<h2>📸 Poste Photo</h2>
+<p class="muted">Items en <span class="badge photo">Attente photo</span>. Workflow strict : “Photo OK” déclenche un <strong>placement obligatoire</strong> (Étagère ou AMR).</p>
+
+<div class="grid-cards">
+  {% for it in items %}
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h4>SKU {{ it['sku'] }}</h4>
+      <span class="badge photo">Attente photo</span>
+    </div>
+    <div class="kpi">
+      <span class="badge">Taille : {{ it['size'] or '—' }}</span>
+      <span class="badge">StRepair : {{ '1' if it['st_repair'] else '0' }}</span>
+      <span class="badge">RepairSNPA : {{ '1' if it['repair_snpa'] else '0' }}</span>
+      <span class="badge">Emplacement : {{ it['loc_code'] or '—' }}</span>
+    </div>
+    <div class="row-right" style="margin-top:.5rem">
+      {{ url_for(
+        <button class="btn btn-ok" type="submit">📷 Photo OK</button>
+      </form>
+      {{ url_for(Détails</a>
+    </div>
+  </div>
+  {% else %}
+  <div class="card"><em>Aucun item.</em></div>
+  {% endfor %}
+</div>
+
+{% if choose == 'storage' and modal_item_id %}
+<div class="modal-backdrop">
+  <div class="modal">
+    <h3>Placement obligatoire après Photo OK</h3>
+    <p>Choisir un <strong>placement</strong> :</p>
+    <div class="grid2">
+      <div class="card">
+        <h4>Étagère</h4>
+        {{ url_for(
+          <input type="hidden" name="item_id" value="{{ modal_item_id }}">
+          <label>Niveau</label>
+          <select name="level">
+            <option value="1">1 (Encours)</option>
+            <option value="2">2 (Encours)</option>
+            <option value="3">3 (NOGO)</option>
+          </select>
+          <label>Plateau</label>
+          <select name="plate">
+            <option>A</option><option>B</option><option>C</option><option>D</option>
+          </select>
+          <button class="btn btn-primary" type="submit">Placer étagère</button>
+        </form>
+      </div>
+      <div class="card">
+        <h4>AMR (SOL)</h4>
+        {{ url_for(
+          <input type="hidden" name="item_id" value="{{ modal_item_id }}">
+          <label>Chariot</label>
+          <select name="amr_size">
+            <option value="GRAND">GRAND</option>
+            <option value="PETIT" selected>PETIT</option>
+          </select>
+          <button class="btn btn-ok" type="submit">Placer sur SOL</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
