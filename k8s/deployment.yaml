@@ -1,0 +1,39 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: raspi-stock
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: raspi-stock }
+  template:
+    metadata:
+      labels: { app: raspi-stock }
+    spec:
+      containers:
+      - name: web
+        image: your-registry/raspi-stock:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PORT
+          value: "8080"
+        - name: MIR_DRY_RUN
+          value: "true"
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+        readinessProbe:
+          httpGet: { path: /readyz, port: 8080 }
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet: { path: /healthz, port: 8080 }
+          initialDelaySeconds: 10
+          periodSeconds: 20
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: raspi-sqlite-pvc

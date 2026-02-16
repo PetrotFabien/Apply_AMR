@@ -1,0 +1,13 @@
+
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: raspi-stock
+spec:
+  to:
+    kind: Service
+    name: raspi-stock
+  port:
+    targetPort: http
+  tls:
+    termination: edge
