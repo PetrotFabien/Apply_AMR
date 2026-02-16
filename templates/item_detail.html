@@ -1,1 +1,40 @@
-{% extends 'base.html' %}{% block title %}Article #{{ it['id'] }} – Raspi Stock{% endblock %}{% block content %}<h2>Article #{{ it['id'] }} — {{ it['sku'] }}</h2><p class='muted'>{{ it['description'] or '' }}</p><div class='grid2'><div class='card'><h3>Etat</h3><p><strong>Taille:</strong> {{ it['size'] or '—' }}</p><p><strong>Statut:</strong> {{ it['status'] }}</p><p><strong>Emplacement:</strong> {{ loc['code'] if loc else '—' }}</p>{% if it['photo_path'] %}<p><img src='{{ url_for('uploads', filename=it['photo_path']) }}' style='max-width:100%'></p>{% endif %}</div><div class='card'><h3>Mouvements</h3><form method='post' action='{{ url_for('move', item_id=it['id']) }}' class='row'><select name='to_location_id' required><optgroup label='SOL (libres)'>{% for s in sol_free %}<option value='{{ s['id'] }}'>{{ s['code'] }} ({{ s['size'] }})</option>{% endfor %}</optgroup></select><button type='submit'>Déplacer</button></form><h4>Uploader photo</h4><form method='post' enctype='multipart/form-data' action='{{ url_for('upload_photo', item_id=it['id']) }}'><input type='file' name='photo' accept='image/*'><button type='submit'>Envoyer</button></form></div></div><div class='card'><h3>Historique</h3><table class='table'><thead><tr><th>Date</th><th>Action</th><th>De</th><th>Vers</th><th>User</th></tr></thead><tbody>{% for m in moves %}<tr><td>{{ m['created_at'] }}</td><td>{{ m['action'] }}</td><td>{{ m['from_code'] or '—' }}</td><td>{{ m['to_code'] or '—' }}</td><td>{{ m['user'] or '—' }}</td></tr>{% else %}<tr><td colspan='5' class='muted'>Aucun mouvement.</td></tr>{% endfor %}</tbody></table></div>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Article #{{ it['id'] }} – Raspi Stock{% endblock %}
+{% block content %}
+<h2>Article #{{ it['id'] }} — {{ it['sku'] }}</h2>
+<p class='muted'>{{ it['description'] or '' }}</p>
+<div class='grid2'>
+  <div class='card'>
+    <h3>État</h3>
+    <p><strong>Taille:</strong> {{ it['size'] or '—' }}</p>
+    <p><strong>StRepair:</strong> {{ it['st_repair'] }}</p>
+    <p><strong>RepairSNPA:</strong> {{ it['repair_snpa'] }}</p>
+    <p><strong>Statut:</strong> {{ it['status'] }}</p>
+    <p><strong>Emplacement:</strong> {{ loc['code'] if loc else '—' }}</p>
+    {% if it['photo_path'] %}
+    <p><img src='{{ url_for('uploads', filename=it['photo_path']) }}' style='max-width:100%'></p>
+    {% endif %}
+  </div>
+  <div class='card'>
+    <h3>Mouvements</h3>
+    <p class='muted'>Déplacement rapide vers un SOL libre :</p>
+    <form method='post' action='#' onsubmit='return false;'>
+      <select name='to_location_id'>
+        {% for s in sol_free %}<option value='{{ s['id'] }}'>{{ s['code'] }} ({{ s['size'] }})</option>{% endfor %}
+      </select>
+      <button class='btn btn-ghost' disabled title='Déplacement direct désactivé dans ce mode'>Déplacer</button>
+    </form>
+  </div>
+</div>
+<div class='card'>
+  <h3>Historique</h3>
+  <table class='table'>
+    <thead><tr><th>Date</th><th>Action</th><th>De</th><th>Vers</th><th>User</th></tr></thead>
+    <tbody>
+      {% for m in moves %}
+      <tr><td>{{ m['created_at'] }}</td><td>{{ m['action'] }}</td><td>{{ m['from_code'] or '—' }}</td><td>{{ m['to_code'] or '—' }}</td><td>{{ m['user'] or '—' }}</td></tr>
+      {% else %}<tr><td colspan='5' class='muted'>Aucun mouvement.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -18,6 +18,9 @@ class Location:
     size: Optional[str]
 
 def can_move(item: Item, location: Location, occupied_count: int = 0) -> Tuple[bool, str]:
+    # Étageres 3 = zone NOGO réservée
+    if location.code.startswith('ETAGERE-3-') and item.status != 'NOGO':
+        return False, "Seuls les items en statut NOGO peuvent être placés sur l'étagère 3."
     if location.capacity is not None and occupied_count >= location.capacity:
         return False, f"{location.code} est déjà occupé"
     if location.kind == 'SOL':
@@ -26,19 +29,6 @@ def can_move(item: Item, location: Location, occupied_count: int = 0) -> Tuple[b
         if location.size != item.size:
             return False, f"Le chariot {item.size} ne peut pas aller sur {location.code} (attendu: {location.size})."
     return True, "OK"
-
-def next_status_for_location(location: Location) -> Optional[str]:
-    if location.code == 'POSTE-PHOTO':
-        return 'PHOTO'
-    if location.code == 'POSTE-INSPECTION':
-        return 'INSPECTION'
-    if location.code == 'POSTE-EMBALLAGE':
-        return 'EMBALLAGE'
-    if location.code.startswith('ETAGERE-3-'):
-        return 'NOGO'
-    if location.kind == 'SOL':
-        return 'STOCK'
-    return None
 
 def choose_slot(slots: List[Location], item: Item) -> Optional[Location]:
     if item.size == 'GRAND':

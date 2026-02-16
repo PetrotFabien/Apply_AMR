@@ -1,1 +1,12 @@
-{% extends 'base.html' %}{% block title %}Dashboard – Raspi Stock{% endblock %}{% block content %}<h2>Dashboard</h2><div class='cards'><div class='card'><h3>SOL – Grands</h3><p><strong>{{ kg['GRAND']['occupied'] }}</strong> / {{ kg['GRAND']['total'] }} occupés</p><p class='muted'>{{ kg['GRAND']['free'] }} libres</p></div><div class='card'><h3>SOL – Petits</h3><p><strong>{{ kg['PETIT']['occupied'] }}</strong> / {{ kg['PETIT']['total'] }} occupés</p><p class='muted'>{{ kg['PETIT']['free'] }} libres</p></div><div class='card'><h3>Statuts</h3><ul class='compact'>{% for s in statuses %}<li>{{ s['status'] }} : {{ s['c'] }}</li>{% else %}<li>Aucun article.</li>{% endfor %}</ul></div></div>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Dashboard – Raspi Stock{% endblock %}
+{% block content %}
+<h2>Dashboard</h2>
+<div class='cards'>
+  <div class='card'><h3>SOL – Grands</h3><p><strong>{{ kg['GRAND']['occupied'] }}</strong> / {{ kg['GRAND']['total'] }} occupés</p><p class='muted'>{{ kg['GRAND']['free'] }} libres</p></div>
+  <div class='card'><h3>SOL – Petits</h3><p><strong>{{ kg['PETIT']['occupied'] }}</strong> / {{ kg['PETIT']['total'] }} occupés</p><p class='muted'>{{ kg['PETIT']['free'] }} libres</p></div>
+  <div class='card'><h3>Statuts (actifs)</h3>
+    <ul class='compact'>{% for s in statuses %}<li>{{ s['status'] }} : {{ s['c'] }}</li>{% else %}<li>Aucun article.</li>{% endfor %}</ul>
+  </div>
+</div>
+{% endblock %}

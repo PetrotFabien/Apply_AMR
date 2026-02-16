@@ -1,107 +1,62 @@
 {% extends 'base.html' %}
 {% block title %}Expédition – Raspi Stock{% endblock %}
-
 {% block content %}
 <h2>🚚 Expédition</h2>
-<p class="muted">
-  Finalisation du flux : chaque expédition effectue une
-  <strong>suppression logique</strong> de l’item (statut "Supprimé", active=0).
-</p>
-
-<!-- SECTION CLIENT -->
+<p class='muted'>Finalisation du flux : l’expédition <strong>supprime logiquement</strong> l’item (archives).</p>
 <h3>Client</h3>
-<div class="grid-cards">
+<div class='grid-cards'>
   {% for it in client %}
-  <div class="card">
-
-    <div class="row" style="justify-content:space-between">
+  <div class='card'>
+    <div class='row' style='justify-content:space-between'>
       <h4>SKU {{ it['sku'] }}</h4>
-      <span class="badge expe">Attente expédition client</span>
+      <span class='badge expe'>Attente expédition client</span>
     </div>
-
-    <div class="kpi">
-      <span class="badge">Taille : {{ it['size'] }}</span>
-      <span class="badge">Emplacement : {{ it['loc_code'] or '—' }}</span>
-    </div>
-
-    <div class="row-right" style="margin-top:.8rem">
-
-      <form method="post" action="{{ url_for('expe_ship', item_id=it['id']) }}">
-        <input type="hidden" name="kind" value="client">
-        <button class="btn btn-purple" type="submit">Expédier (Client)</button>
+    <div class='row-right' style='margin-top:.8rem'>
+      <form method='post' action='{{ url_for('expe_ship', item_id=it['id']) }}' class='inline'>
+        <input type='hidden' name='kind' value='client'>
+        <button class='btn btn-purple' type='submit'>Expédier (Client)</button>
       </form>
-
-      <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it['id']) }}">Détails</a>
+      <a class='btn' href='{{ url_for('item_detail', item_id=it['id']) }}'>Détails</a>
     </div>
-
   </div>
-  {% else %}
-  <div class="card"><em>Aucun item pour expédition client.</em></div>
-  {% endfor %}
+  {% else %}<div class='card'><em>Aucun item.</em></div>{% endfor %}
 </div>
 
-<!-- SECTION ST -->
 <h3>ST</h3>
-<div class="grid-cards">
+<div class='grid-cards'>
   {% for it in st %}
-  <div class="card">
-
-    <div class="row" style="justify-content:space-between">
+  <div class='card'>
+    <div class='row' style='justify-content:space-between'>
       <h4>SKU {{ it['sku'] }}</h4>
-      <span class="badge expe">Attente expédition ST</span>
+      <span class='badge expe'>Attente expédition ST</span>
     </div>
-
-    <div class="kpi">
-      <span class="badge">Taille : {{ it['size'] }}</span>
-      <span class="badge">Emplacement : {{ it['loc_code'] or '—' }}</span>
-    </div>
-
-    <div class="row-right" style="margin-top:.8rem">
-
-      <form method="post" action="{{ url_for('expe_ship', item_id=it['id']) }}">
-        <input type="hidden" name="kind" value="st">
-        <button class="btn btn-purple" type="submit">Expédier (ST)</button>
+    <div class='row-right' style='margin-top:.8rem'>
+      <form method='post' action='{{ url_for('expe_ship', item_id=it['id']) }}' class='inline'>
+        <input type='hidden' name='kind' value='st'>
+        <button class='btn btn-purple' type='submit'>Expédier (ST)</button>
       </form>
-
-      <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it['id']) }}">Détails</a>
+      <a class='btn' href='{{ url_for('item_detail', item_id=it['id']) }}'>Détails</a>
     </div>
-
   </div>
-  {% else %}
-  <div class="card"><em>Aucun item pour expédition ST.</em></div>
-  {% endfor %}
+  {% else %}<div class='card'><em>Aucun item.</em></div>{% endfor %}
 </div>
 
-<!-- SECTION T2 -->
 <h3>Départ T2</h3>
-<div class="grid-cards">
+<div class='grid-cards'>
   {% for it in t2 %}
-  <div class="card">
-
-    <div class="row" style="justify-content:space-between">
+  <div class='card'>
+    <div class='row' style='justify-content:space-between'>
       <h4>SKU {{ it['sku'] }}</h4>
-      <span class="badge expe">Attente départ T2</span>
+      <span class='badge expe'>Attente départ T2</span>
     </div>
-
-    <div class="kpi">
-      <span class="badge">Taille : {{ it['size'] }}</span>
-      <span class="badge">Emplacement : {{ it['loc_code'] or '—' }}</span>
-    </div>
-
-    <div class="row-right" style="margin-top:.8rem">
-
-      <form method="post" action="{{ url_for('expe_ship', item_id=it['id']) }}">
-        <input type="hidden" name="kind" value="t2">
-        <button class="btn btn-purple" type="submit">Expédier (T2)</button>
+    <div class='row-right' style='margin-top:.8rem'>
+      <form method='post' action='{{ url_for('expe_ship', item_id=it['id']) }}' class='inline'>
+        <input type='hidden' name='kind' value='t2'>
+        <button class='btn btn-purple' type='submit'>Expédier (T2)</button>
       </form>
-
-      <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it['id']) }}">Détails</a>
+      <a class='btn' href='{{ url_for('item_detail', item_id=it['id']) }}'>Détails</a>
     </div>
-
   </div>
-  {% else %}
-  <div class="card"><em>Aucun item pour départ T2.</em></div>
-  {% endfor %}
+  {% else %}<div class='card'><em>Aucun item.</em></div>{% endfor %}
 </div>
-
 {% endblock %}

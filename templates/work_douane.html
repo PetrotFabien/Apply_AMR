@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Zone Douane – Raspi Stock{% endblock %}
+{% block content %}
+<h2>🏷️ Zone Douane</h2>
+<p class='muted'>Liste des items en <span class='badge photo'>Attente douane</span>. Utilisez <em>Sortie de douane</em> pour passer en <strong>Attente photo</strong>.</p>
+<table class='table'>
+  <thead><tr><th>ID</th><th>SKU</th><th>Taille</th><th>StRepair</th><th>RepairSNPA</th><th>Emplacement</th><th>Créé</th><th>Action</th></tr></thead>
+  <tbody>
+    {% for it in items %}
+    <tr>
+      <td>{{ it['id'] }}</td>
+      <td>{{ it['sku'] }}</td>
+      <td>{{ it['size'] or '—' }}</td>
+      <td>{{ '1' if it['st_repair'] else '0' }}</td>
+      <td>{{ '1' if it['repair_snpa'] else '0' }}</td>
+      <td>{{ it['loc_code'] or '—' }}</td>
+      <td>{{ it['created_at'] }}</td>
+      <td>
+        <form method='post' action='{{ url_for('douane_out', item_id=it['id']) }}' class='inline'>
+          <button class='btn btn-primary' type='submit'>Sortie de douane</button>
+        </form>
+        <a class='btn' href='{{ url_for('item_detail', item_id=it['id']) }}'>Détails</a>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan='8' class='muted'>Aucun article en attente douane.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}
