@@ -18,13 +18,11 @@ class Location:
     size: Optional[str]   # for SOL: 'GRAND'|'PETIT', else None
 
 def can_move(item: Item, location: Location, occupied_count: int = 0) -> Tuple[bool, str]:
-    # NOGO strict: seules les pièces NOGO sur ETAGERE-3-*
+    # NOGO strict
     if location.code.startswith('ETAGERE-3-') and item.status != 'NOGO':
         return False, "Seuls les items en statut NOGO peuvent être placés sur l'étagère 3."
-    # Capacité
     if location.capacity is not None and occupied_count >= location.capacity:
         return False, f"{location.code} est déjà occupé"
-    # Taille sur SOL
     if location.kind == 'SOL':
         if not item.size:
             return False, "La taille du chariot (GRAND/PETIT) est inconnue."

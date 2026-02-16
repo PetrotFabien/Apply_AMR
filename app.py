@@ -2,9 +2,11 @@ import os
 import sqlite3
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, g, abort, send_from_directory, flash
-from werkzeug.utils import secure_filename
+from flask_login import LoginManager, login_required, current_user
+from werkzeug.security import generate_password_hash
 from mir_client import MiRClient
 from processus import Item, Location, can_move, next_status_for_location, choose_slot
+import auth as auth_bp
 
 BASE_DIR=os.path.dirname(os.path.abspath(__file__))
 DATA_DIR=os.path.join(BASE_DIR,'data')
@@ -14,6 +16,8 @@ os.makedirs(UPLOAD_DIR,exist_ok=True)
 DATABASE=os.environ.get('DATABASE',os.path.join(DATA_DIR,'stock.db'))
 
 MIR_AFTER_STOCK=os.getenv('MIR_MISSION_AFTER_STOCK')
+SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE','false').lower()=='true'
+
 ALLOWED_EXTENSIONS={'png','jpg','jpeg','gif','webp'}
 
 def allowed_file(filename:str)->bool:
@@ -23,7 +27,9 @@ def create_app():
     app=Flask(__name__)
     app.config['UPLOAD_FOLDER']=UPLOAD_DIR
     app.secret_key=os.environ.get('SECRET_KEY','dev-secret')
+    app.config['SESSION_COOKIE_SECURE']=SESSION_COOKIE_SECURE
 
+    # --- DB helpers ---
     def get_db():
         if 'db' not in g:
             g.db=sqlite3.connect(DATABASE,detect_types=sqlite3.PARSE_DECLTYPES)
@@ -36,6 +42,19 @@ def create_app():
         if db is not None:
             db.close()
 
+    # Make DB available for auth blueprint
+    auth_bp.get_db = get_db
+
+    # --- Login manager ---
+    login_manager = LoginManager(app)
+    login_manager.login_view = 'auth.admin_login'  # fallback
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        row=get_db().execute('SELECT * FROM user WHERE id=?',(user_id,)).fetchone()
+        return auth_bp.SimpleUser(row) if row else None
+
+    # --- Health endpoints ---
     @app.route('/healthz')
     def healthz():
         return {'ok': True}, 200
@@ -48,9 +67,10 @@ def create_app():
         except Exception as e:
             return {'ready': False, 'error': str(e)}, 500
 
+    # --- Init DB (schema + seed + normalization) ---
     def init_db():
         db=get_db(); db.execute('PRAGMA foreign_keys=ON;')
-        # baseline
+        # location / item / movement
         db.execute("""CREATE TABLE IF NOT EXISTS location(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           code TEXT NOT NULL UNIQUE,
@@ -85,18 +105,35 @@ def create_app():
           user TEXT,
           FOREIGN KEY(item_id) REFERENCES item(id) ON DELETE CASCADE
         );""")
+        # user table
+        db.execute("""CREATE TABLE IF NOT EXISTS user(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT NOT NULL UNIQUE,
+          email TEXT,
+          display_name TEXT,
+          role TEXT NOT NULL CHECK(role IN ('user','admin')) DEFAULT 'user',
+          active INTEGER NOT NULL DEFAULT 1,
+          password_hash TEXT,
+          sso_subject TEXT,
+          last_login_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );""")
         db.commit()
-        # migration colonnes
-        def column_exists(table, col):
-            rows=db.execute(f"PRAGMA table_info({table})").fetchall()
-            return any(r['name']==col for r in rows)
-        if not column_exists('location','size'):
+
+        # migration columns that may not exist on older dbs
+        def col_exists(table, col):
+            r=db.execute(f"PRAGMA table_info({table})").fetchall()
+            return any(x['name']==col for x in r)
+        if not col_exists('location','size'):
             db.execute('ALTER TABLE location ADD COLUMN size TEXT')
-        if not column_exists('location','active'):
+        if not col_exists('location','active'):
             db.execute('ALTER TABLE location ADD COLUMN active INTEGER NOT NULL DEFAULT 1')
-        if not column_exists('item','size'):
+        if not col_exists('item','size'):
             db.execute('ALTER TABLE item ADD COLUMN size TEXT')
+        if not col_exists('user','sso_subject'):
+            db.execute('ALTER TABLE user ADD COLUMN sso_subject TEXT')
         db.commit()
+
         # backfill SOL sizes
         db.execute("""
             UPDATE location SET size='GRAND'
@@ -131,49 +168,46 @@ def create_app():
                                (code,f'Etagère {e} plateau {s}','ETAGERE',None,None))
             db.commit()
 
-        # === NORMALISATION DES EMPLACEMENTS (après seed) ===
-        allowed_shelves = [f"ETAGERE-{e}-{s}" for e in (1,2,3) for s in ("A","B","C","D")]
-        placeholders = ",".join(["?"]*len(allowed_shelves))
-        # Désactiver les étagères non référencées ET vides
+        # normalize shelves and SOL names
+        allowed_shelves=[f"ETAGERE-{e}-{s}" for e in (1,2,3) for s in ("A","B","C","D")]
+        placeholders=','.join(['?']*len(allowed_shelves))
         db.execute(f"""
-            UPDATE location
-               SET active = 0
-             WHERE kind = 'ETAGERE'
+            UPDATE location SET active=0
+             WHERE kind='ETAGERE'
                AND code NOT IN ({placeholders})
                AND id NOT IN (
-                    SELECT l.id
-                      FROM location l
-                      JOIN item i ON i.location_id = l.id
-                     WHERE l.kind='ETAGERE'
+                    SELECT l.id FROM location l JOIN item i ON i.location_id=l.id WHERE l.kind='ETAGERE'
                )
         """, allowed_shelves)
-        db.commit()
-        # Renommer les 12 plateaux standard
         for e in (1,2,3):
             for s in ("A","B","C","D"):
                 code=f"ETAGERE-{e}-{s}"
-                if e in (1,2):
-                    name=f"Étagère {e} (Encours) – Plateau {s}"
-                else:
-                    name=f"Étagère 3 (NOGO) – Plateau {s}"
+                name=f"Étagère {e} (Encours) – Plateau {s}" if e in (1,2) else f"Étagère 3 (NOGO) – Plateau {s}"
                 db.execute("UPDATE location SET name=? WHERE code=? AND kind='ETAGERE'", (name, code))
-        db.commit()
-        # Renommer les SOL selon la taille
-        db.execute("""
-            UPDATE location
-               SET name = 'Grand Chariot ' || code
-             WHERE kind='SOL' AND size='GRAND'
-        """)
-        db.execute("""
-            UPDATE location
-               SET name = 'Petit Chariot ' || code
-             WHERE kind='SOL' AND size='PETIT'
-        """)
+        db.execute("UPDATE location SET name='Grand Chariot '||code WHERE kind='SOL' AND size='GRAND'")
+        db.execute("UPDATE location SET name='Petit Chariot '||code WHERE kind='SOL' AND size='PETIT'")
         db.commit()
 
-    with app.app_context(): init_db()
+        # ensure one local admin exists (manual password)
+        admin_user = os.getenv('ADMIN_USERNAME','admin')
+        admin_pass = os.getenv('ADMIN_PASSWORD')
+        row=db.execute("SELECT * FROM user WHERE role='admin' ORDER BY id LIMIT 1").fetchone()
+        if row is None:
+            if not admin_pass:
+                admin_pass='ChangeMe!'
+                print('[WARN] ADMIN_PASSWORD non défini. Admin initial = "admin" / "ChangeMe!" (à modifier).')
+            db.execute("INSERT INTO user(username,display_name,role,active,password_hash) VALUES (?,?,?,?,?)",
+                       (admin_user, 'Administrateur', 'admin', 1, generate_password_hash(admin_pass)))
+            db.commit()
 
-    # helpers
+    with app.app_context():
+        init_db()
+
+    # --- Blueprints ---
+    from auth import bp as auth_blueprint
+    app.register_blueprint(auth_blueprint)
+
+    # --- Helpers (rows -> dataclass) ---
     def item_by_id(item_id):
         return get_db().execute('SELECT * FROM item WHERE id=?',(item_id,)).fetchone()
     def location_by_id(loc_id):
@@ -213,7 +247,9 @@ def create_app():
         db.execute('UPDATE item SET location_id=?, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',(to_location_id,new_status,item_id))
         db.commit(); return new_status
 
+    # --- Routes (protected) ---
     @app.route('/')
+    @login_required
     def index():
         db=get_db(); kg={'GRAND':{},'PETIT':{}}
         for size in ['GRAND','PETIT']:
@@ -224,6 +260,7 @@ def create_app():
         return render_template('index.html',kg=kg,statuses=statuses)
 
     @app.route('/items',methods=['GET','POST'])
+    @login_required
     def items():
         db=get_db()
         if request.method=='POST':
@@ -255,6 +292,7 @@ def create_app():
         return render_template('items.html',items=rows,q=q)
 
     @app.route('/items/<int:item_id>')
+    @login_required
     def item_detail(item_id):
         db=get_db(); it=item_by_id(item_id)
         if not it: abort(404)
@@ -269,47 +307,22 @@ def create_app():
         return render_template('item_detail.html',it=it,loc=loc,moves=moves,sol_free=sol_free)
 
     @app.route('/items/<int:item_id>/move',methods=['POST'])
+    @login_required
     def move(item_id):
         to_id=int(request.form.get('to_location_id'))
         try:
-            st=move_item(item_id,to_id,'MOVE'); flash(f'Déplacé (statut: {st})','ok')
-        except ValueError as e: flash(str(e),'error')
-        return redirect(url_for('item_detail',item_id=item_id))
-
-    # Actions rapides
-    @app.route('/items/<int:item_id>/send_to_photo',methods=['POST'])
-    def send_to_photo(item_id):
-        dest=location_by_code('POSTE-PHOTO')
-        if not dest: flash('POSTE-PHOTO non configuré','error'); return redirect(url_for('item_detail',item_id=item_id))
-        try:
-            st=move_item(item_id,dest['id'],'TO_PHOTO'); flash(f'Envoyé au poste PHOTO (statut: {st})','ok')
-        except ValueError as e: flash(str(e),'error')
-        return redirect(url_for('item_detail',item_id=item_id))
-
-    @app.route('/items/<int:item_id>/send_to_inspection',methods=['POST'])
-    def send_to_inspection(item_id):
-        dest=location_by_code('POSTE-INSPECTION')
-        if not dest: flash('POSTE-INSPECTION non configuré','error'); return redirect(url_for('item_detail',item_id=item_id))
-        try:
-            st=move_item(item_id,dest['id'],'TO_INSPECTION'); flash(f"Envoyé à l'INSPECTION (statut: {st})",'ok')
-        except ValueError as e: flash(str(e),'error')
-        return redirect(url_for('item_detail',item_id=item_id))
-
-    @app.route('/items/<int:item_id>/send_to_emballage',methods=['POST'])
-    def send_to_emballage(item_id):
-        dest=location_by_code('POSTE-EMBALLAGE')
-        if not dest: flash('POSTE-EMBALLAGE non configuré','error'); return redirect(url_for('item_detail',item_id=item_id))
-        try:
-            st=move_item(item_id,dest['id'],'TO_EMBALLAGE'); flash(f"Envoyé à l'EMBALLAGE (statut: {st})",'ok')
+            st=move_item(item_id,to_id,'MOVE', user=getattr(current_user,'username',None)); flash(f'Déplacé (statut: {st})','ok')
         except ValueError as e: flash(str(e),'error')
         return redirect(url_for('item_detail',item_id=item_id))
 
     @app.route('/work/photo')
+    @login_required
     def work_photo():
         db=get_db(); rows=db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status IN ('RECU','PHOTO') ORDER BY i.created_at ASC").fetchall()
         return render_template('work_photo.html',items=rows)
 
     @app.route('/items/<int:item_id>/upload_photo',methods=['POST'])
+    @login_required
     def upload_photo(item_id):
         it=item_by_id(item_id)
         if not it: abort(404)
@@ -317,6 +330,7 @@ def create_app():
         f=request.files['photo']
         if f.filename=='': flash('Fichier non sélectionné','error'); return redirect(url_for('item_detail',item_id=item_id))
         if not allowed_file(f.filename): flash('Extension non autorisée','error'); return redirect(url_for('item_detail',item_id=item_id))
+        from werkzeug.utils import secure_filename
         fname=secure_filename(f.filename); import os as _os
         base,ext=_os.path.splitext(fname)
         from datetime import datetime as _dt
@@ -329,19 +343,21 @@ def create_app():
         return redirect(url_for('item_detail',item_id=item_id))
 
     @app.route('/work/inspection',methods=['GET','POST'])
+    @login_required
     def work_inspection():
         db=get_db()
         if request.method=='POST':
             item_id=int(request.form.get('item_id')); result=request.form.get('result')
             dest=location_by_code('POSTE-EMBALLAGE') if result=='OK' else location_by_code('POSTE-INSPECTION')
             try:
-                move_item(item_id,dest['id'],f'INSPECT_{result}'); flash('Inspection mise à jour','ok')
+                move_item(item_id,dest['id'],f'INSPECT_{result}', user=getattr(current_user,'username',None)); flash('Inspection mise à jour','ok')
             except ValueError as e: flash(str(e),'error')
             return redirect(url_for('work_inspection'))
         rows=db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status IN ('INSPECTION') ORDER BY i.created_at ASC").fetchall()
         return render_template('work_inspection.html',items=rows)
 
     @app.route('/work/emballage',methods=['GET','POST'])
+    @login_required
     def work_emballage():
         db=get_db()
         if request.method=='POST':
@@ -354,7 +370,7 @@ def create_app():
                 slot=location_by_id(slot_loc.id) if slot_loc else None
             if not slot: flash('Aucun emplacement SOL compatible','error'); return redirect(url_for('work_emballage'))
             try:
-                move_item(item_id,slot['id'],'PUT_STOCK')
+                move_item(item_id,slot['id'],'PUT_STOCK', user=getattr(current_user,'username',None))
                 db.execute("UPDATE item SET status='STOCK', updated_at=CURRENT_TIMESTAMP WHERE id=?",(item_id,)); db.commit(); flash('Article stocké','ok')
                 if MIR_AFTER_STOCK:
                     try: MiRClient().start_mission(MIR_AFTER_STOCK); flash('MiR: mission post-stock envoyée','ok')
@@ -365,9 +381,11 @@ def create_app():
         sol_slots=free_sol_slots(); return render_template('work_emballage.html',items=rows,sol_slots=sol_slots)
 
     @app.route('/uploads/<path:filename>')
+    @login_required
     def uploads(filename): return send_from_directory(UPLOAD_DIR,filename)
 
     @app.route('/locations')
+    @login_required
     def locations():
         db=get_db(); kind=request.args.get('kind'); show_all=(request.args.get('show')=='all')
         base="""
@@ -386,21 +404,61 @@ def create_app():
         locs=db.execute(sql, tuple(params)).fetchall()
         return render_template('locations.html', locations=locs, kind=kind, show_all=show_all)
 
-    @app.route('/api/mir/status')
-    def api_mir_status():
-        try: return MiRClient().status(),200
-        except Exception as e: return {'error':str(e)},502
-    @app.route('/api/mir/missions')
-    def api_mir_missions():
-        try: return {'missions':MiRClient().missions()},200
-        except Exception as e: return {'error':str(e)},502
-    @app.route('/api/mir/mission/<guid>',methods=['POST'])
-    def api_mir_start(guid):
-        try: return {'ok':True,'result':MiRClient().start_mission(guid)},200
-        except Exception as e: return {'ok':False,'error':str(e)},502
+    # --- Admin: gestion utilisateurs ---
+    def admin_required(fn):
+        from functools import wraps
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            if not getattr(current_user, 'role', None)=='admin':
+                flash('Accès administrateur requis','error')
+                return redirect(url_for('index'))
+            return fn(*args, **kwargs)
+        return wrapper
 
-    @app.route('/mir')
-    def mir_dashboard(): return render_template('mir_dashboard.html')
+    @app.route('/admin/users')
+    @login_required
+    @admin_required
+    def admin_users():
+        rows=get_db().execute('SELECT id,username,email,display_name,role,active,last_login_at,created_at FROM user ORDER BY role DESC, username').fetchall()
+        return render_template('admin_users.html', users=rows)
+
+    @app.route('/admin/users/create', methods=['POST'])
+    @login_required
+    @admin_required
+    def admin_users_create():
+        username=(request.form.get('username') or '').strip()
+        display=(request.form.get('display_name') or '').strip() or username
+        role=(request.form.get('role') or 'user')
+        if not username:
+            flash('username requis','error'); return redirect(url_for('admin_users'))
+        db=get_db()
+        try:
+            db.execute('INSERT INTO user(username,display_name,role,active) VALUES (?,?,?,1)',(username,display,role))
+            db.commit(); flash('Utilisateur créé','ok')
+        except Exception as e:
+            flash(f'Echec création: {e}','error')
+        return redirect(url_for('admin_users'))
+
+    @app.route('/admin/users/toggle/<int:uid>', methods=['POST'])
+    @login_required
+    @admin_required
+    def admin_users_toggle(uid):
+        db=get_db()
+        db.execute('UPDATE user SET active = CASE active WHEN 1 THEN 0 ELSE 1 END WHERE id=?',(uid,))
+        db.commit(); flash('Statut utilisateur mis à jour','ok')
+        return redirect(url_for('admin_users'))
+
+    @app.route('/admin/users/password/<int:uid>', methods=['POST'])
+    @login_required
+    @admin_required
+    def admin_users_password(uid):
+        pwd=(request.form.get('password') or '').strip()
+        if len(pwd)<8:
+            flash('Mot de passe trop court (>=8)','error'); return redirect(url_for('admin_users'))
+        from werkzeug.security import generate_password_hash
+        db=get_db(); db.execute('UPDATE user SET password_hash=? WHERE id=?',(generate_password_hash(pwd),uid))
+        db.commit(); flash('Mot de passe mis à jour','ok')
+        return redirect(url_for('admin_users'))
 
     return app
 
