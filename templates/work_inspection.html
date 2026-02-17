@@ -1,45 +1,33 @@
-{% extends 'base.html' %}
+
+{% extends "base.html" %}
 {% block title %}Inspection – Raspi Stock{% endblock %}
 {% block content %}
-<h2>🔍 Inspection</h2>
-<p class='muted'>Items en <span class='badge insp'>Attente inspection</span> — Workflow strict : OK ouvre un <strong>popup Pool</strong>.</p>
-<div class='grid-cards'>
+<h2>🔎 Inspection</h2>
+<table class="table">
+  <thead><tr><th>ID</th><th>SKU</th><th>Photo</th><th>Action</th></tr></thead>
+  <tbody>
   {% for it in items %}
-  <div class='card'>
-    <div class='row' style='justify-content:space-between'>
-      <h4>SKU {{ it['sku'] }}</h4>
-      <span class='badge insp'>Attente inspection</span>
-    </div>
-    <div class='kpi'>
-      <span class='badge'>Taille : {{ it['size'] or '—' }}</span>
-      <span class='badge'>Emplacement : {{ it['loc_code'] or '—' }}</span>
-    </div>
-    <div class='row-right' style='margin-top:.5rem'>
-      <form method='post' action='{{ url_for('inspection_ok', item_id=it['id']) }}' class='inline'>
-        <button class='btn btn-ok' type='submit'>✔ Inspection OK</button>
-      </form>
-      <form method='post' action='{{ url_for('inspection_nok', item_id=it['id']) }}' class='inline'>
-        <button class='btn btn-danger' type='submit'>✖ Inspection NOK</button>
-      </form>
-      <a class='btn' href='{{ url_for('item_detail', item_id=it['id']) }}'>Détails</a>
-    </div>
-  </div>
+    <tr>
+      <td>{{ it['id'] }}</td>
+      <td>{{ it['sku'] }}</td>
+      <td>
+        {% if it['photo_path'] %}
+          <img src="{{ url_for('uploads', filename=it['photo_path']) }}" alt="Photo" style="max-height:64px">
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </td>
+      <td>
+        <form method="post" class="inline">
+          <input type="hidden" name="item_id" value="{{ it['id'] }}">
+          <button type="submit" name="result" value="OK">✔ OK</button>
+          <button type="submit" name="result" value="NOK" class="danger">✖ NOK</button>
+        </form>
+      </td>
+    </tr>
   {% else %}
-  <div class='card'><em>Aucun item.</em></div>
+    <tr><td colspan="4" class="muted">Aucun article.</td></tr>
   {% endfor %}
-</div>
-
-{% if ask_pool and modal_item_id %}
-<div class='modal-backdrop'>
-  <div class='modal'>
-    <h3>Placement en pool ?</h3>
-    <p>Inspection OK : placer l’item en pool (suppression logique) ?</p>
-    <form method='post' action='{{ url_for('inspection_pool_decision') }}'>
-      <input type='hidden' name='item_id' value='{{ modal_item_id }}'>
-      <button class='btn btn-ok'  type='submit' name='choice' value='oui'>Oui (supprimer)</button>
-      <button class='btn btn-warn' type='submit' name='choice' value='non'>Non (→ Attente emballage)</button>
-    </form>
-  </div>
-</div>
-{% endif %}
+  </tbody>
+</table>
 {% endblock %}

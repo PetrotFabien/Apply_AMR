@@ -53,93 +53,243 @@ def create_app():
         except Exception as e:
             return {'ready':False,'error':str(e)},500
 
+# --- Init DB (schema + migrations + seed + normalisation) ---------------
     def init_db():
-        db=get_db(); db.execute('PRAGMA foreign_keys=ON;')
-        statuses=(
-            'Attente douane','Attente photo','Poste photo','Attente inspection','Attente RAC',
-            'Prison','Attente emballage','Emballage','Attente expédition client','Attente expédition ST','Attente départ T2',
-            'STOCK','NOGO','Supprimé'
-        ); status_check=",".join([f"'{s}'" for s in statuses])
+
+        db = get_db()
+        db.execute('PRAGMA foreign_keys=ON;')
+
+        # 0) Statuts officiels du workflow strict  -----------------------------
+        statuses = (
+            'Attente douane', 'Attente photo', 'Poste photo',
+            'Attente inspection', 'Attente RAC',
+            'Prison', 'Attente emballage', 'Emballage',
+            'Attente expédition client', 'Attente expédition ST', 'Attente départ T2',
+            'STOCK', 'NOGO', 'Supprimé'
+        )
+        status_check = ",".join([f"'{s}'" for s in statuses])
+
+        # 1) Tables principales si absentes  -----------------------------------
         db.execute("""
         CREATE TABLE IF NOT EXISTS location(
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          code TEXT NOT NULL UNIQUE,
-          name TEXT NOT NULL,
-          kind TEXT NOT NULL CHECK(kind IN ('SOL','ETAGERE','POSTE')),
-          capacity INTEGER,
-          size TEXT,
-          active INTEGER NOT NULL DEFAULT 1
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            kind TEXT NOT NULL CHECK(kind IN ('SOL','ETAGERE','POSTE')),
+            capacity INTEGER,
+            size TEXT,
+            active INTEGER NOT NULL DEFAULT 1
         );
         """)
         db.execute(f"""
         CREATE TABLE IF NOT EXISTS item(
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          sku TEXT NOT NULL,
-          description TEXT,
-          photo_path TEXT,
-          size TEXT CHECK(size IN ('GRAND','PETIT') OR size IS NULL),
-          status TEXT NOT NULL CHECK(status IN ({status_check})),
-          active INTEGER NOT NULL DEFAULT 1,
-          st_repair INTEGER NOT NULL DEFAULT 0,
-          repair_snpa INTEGER NOT NULL DEFAULT 0,
-          location_id INTEGER,
-          avis_no TEXT,
-          order_no TEXT,
-          bl_no TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY(location_id) REFERENCES location(id) ON DELETE SET NULL
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sku TEXT NOT NULL,
+            description TEXT,
+            photo_path TEXT,
+            size TEXT CHECK(size IN ('GRAND','PETIT') OR size IS NULL),
+            status TEXT NOT NULL CHECK(status IN ({status_check})),
+            active INTEGER NOT NULL DEFAULT 1,
+            st_repair INTEGER NOT NULL DEFAULT 0,
+            repair_snpa INTEGER NOT NULL DEFAULT 0,
+            location_id INTEGER,
+            avis_no TEXT,
+            order_no TEXT,
+            bl_no TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(location_id) REFERENCES location(id) ON DELETE SET NULL
         );
         """)
         db.execute("""
         CREATE TABLE IF NOT EXISTS movement(
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          item_id INTEGER NOT NULL,
-          from_location_id INTEGER,
-          to_location_id INTEGER,
-          action TEXT NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          user TEXT,
-          FOREIGN KEY(item_id) REFERENCES item(id) ON DELETE CASCADE
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id INTEGER NOT NULL,
+            from_location_id INTEGER,
+            to_location_id INTEGER,
+            action TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            user TEXT,
+            FOREIGN KEY(item_id) REFERENCES item(id) ON DELETE CASCADE
         );
         """)
         db.commit()
-        # ensure user table
-        db.execute("""
-        CREATE TABLE IF NOT EXISTS user(
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          username TEXT NOT NULL UNIQUE,
-          email TEXT,
-          display_name TEXT,
-          role TEXT NOT NULL CHECK(role IN ('user','admin','douane','photo','inspection','rac','emballage','expedition')) DEFAULT 'admin',
-          active INTEGER NOT NULL DEFAULT 1,
-          password_hash TEXT,
-          last_login_at TIMESTAMP,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+        # 2) Colonnes manquantes AVANT toute migration/UPDATE ------------------
+        def col_exists(table, col):
+            r = db.execute(f"PRAGMA table_info({table})").fetchall()
+            return any(x["name"] == col for x in r)
+
+        if not col_exists('location', 'size'):
+            db.execute("ALTER TABLE location ADD COLUMN size TEXT")
+        if not col_exists('location', 'active'):
+            db.execute("ALTER TABLE location ADD COLUMN active INTEGER NOT NULL DEFAULT 1")
+
+        if not col_exists('item', 'active'):
+            db.execute("ALTER TABLE item ADD COLUMN active INTEGER NOT NULL DEFAULT 1")
+        if not col_exists('item', 'st_repair'):
+            db.execute("ALTER TABLE item ADD COLUMN st_repair INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'repair_snpa'):
+            db.execute("ALTER TABLE item ADD COLUMN repair_snpa INTEGER NOT NULL DEFAULT 0")
+        db.commit()
+
+    # 3) MIGRATION FORCÉE (détection large de l'ancien CHECK) --------------
+    
+        row = db.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='item'").fetchone()
+        needs_migration = False
+        if row:
+            sql = row['sql'] or ""
+            old_keywords = ["RECU", "PHOTO", "INSPECTION", "EMBALLAGE", "STOCK"]
+            if all(k in sql for k in old_keywords):
+                needs_migration = True
+
+        if needs_migration:
+            print("[MIGRATION] Ancien schéma détecté → migration forcée")
+            db.execute("PRAGMA foreign_keys=OFF;")
+            db.execute("BEGIN;")
+            db.execute("ALTER TABLE item RENAME TO item_old;")
+
+        # Nouvelle table 'item' avec CHECK étendu
+        db.execute(f"""
+        CREATE TABLE item(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sku TEXT NOT NULL,
+            description TEXT,
+            photo_path TEXT,
+            size TEXT CHECK(size IN ('GRAND','PETIT') OR size IS NULL),
+            status TEXT NOT NULL CHECK(status IN ({status_check})),
+            active INTEGER NOT NULL DEFAULT 1,
+            st_repair INTEGER NOT NULL DEFAULT 0,
+            repair_snpa INTEGER NOT NULL DEFAULT 0,
+            location_id INTEGER,
+            avis_no TEXT,
+            order_no TEXT,
+            bl_no TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(location_id) REFERENCES location(id) ON DELETE SET NULL
         );
         """)
-        # seed locations if empty
-        c=db.execute('SELECT COUNT(*) AS c FROM location').fetchone()['c']
-        if c==0:
+
+        # Migration des données + mapping anciens statuts
+        db.execute("""
+        INSERT INTO item(
+            id, sku, description, photo_path, size,
+            status, active, st_repair, repair_snpa,
+            location_id, avis_no, order_no, bl_no,
+            created_at, updated_at
+        )
+        SELECT
+            id,
+            sku,
+            description,
+            photo_path,
+            size,
+            CASE status
+                WHEN 'RECU'        THEN 'Attente photo'
+                WHEN 'PHOTO'       THEN 'Poste photo'
+                WHEN 'INSPECTION'  THEN 'Attente inspection'
+                WHEN 'EMBALLAGE'   THEN 'Attente emballage'
+                WHEN 'STOCK'       THEN 'STOCK'
+                ELSE 'Attente photo'
+            END,
+            COALESCE(active,1),
+            COALESCE(st_repair,0),
+            COALESCE(repair_snpa,0),
+            location_id,
+            avis_no,
+            order_no,
+            bl_no,
+            created_at,
+            updated_at
+        FROM item_old;
+        """)
+
+        db.execute("DROP TABLE item_old;")
+        db.execute("COMMIT;")
+        db.execute("PRAGMA foreign_keys=ON;")
+        db.commit()
+        print("[MIGRATION] OK — Nouveau schéma appliqué.")
+
+    # 4) Seed emplacements si vide ------------------------------------------
+        c = db.execute("SELECT COUNT(*) AS c FROM location").fetchone()['c']
+        if c == 0:
+            # SOL grands
             for code in ['S-A1','S-A2','S-A3','S-A4','S-B1','S-B2','S-B3','S-B4']:
-                db.execute("INSERT INTO location(code,name,kind,capacity,size) VALUES (?,?,?,?,?)",(code,f'Grand Chariot {code}','SOL',1,'GRAND'))
-            for rowc in ['C','D','E','F','G','H']:
+                db.execute(
+                    "INSERT INTO location(code,name,kind,capacity,size) VALUES (?,?,?,?,?)",
+                    (code, f"Grand Chariot {code}", 'SOL', 1, 'GRAND')
+                )
+            # SOL petits
+            for row_code in ['C','D','E','F','G','H']:
                 for i in range(1,7):
-                    code=f'S-{rowc}{i}'; db.execute("INSERT INTO location(code,name,kind,capacity,size) VALUES (?,?,?,?,?)",(code,f'Petit Chariot {code}','SOL',1,'PETIT'))
-            for code,name in [('POSTE-PHOTO','Poste Photo'),('POSTE-INSPECTION','Poste Inspection'),('POSTE-EMBALLAGE','Poste Emballage')]:
-                db.execute("INSERT INTO location(code,name,kind,capacity,size) VALUES (?,?,?,?,?)",(code,name,'POSTE',1,None))
+                    code = f"S-{row_code}{i}"
+                    db.execute(
+                        "INSERT INTO location(code,name,kind,capacity,size) VALUES (?,?,?,?,?)",
+                        (code, f"Petit Chariot {code}", 'SOL', 1, 'PETIT')
+                    )
+            # POSTES
+            for code, name in [
+                ('POSTE-PHOTO','Poste Photo'),
+                ('POSTE-INSPECTION','Poste Inspection'),
+                ('POSTE-EMBALLAGE','Poste Emballage'),
+            ]:
+                db.execute(
+                    "INSERT INTO location(code,name,kind,capacity,size) VALUES (?,?,?,?,?)",
+                    (code, name, 'POSTE', 1, None)
+                )
+            # ÉTAGÈRES
             for e in [1,2,3]:
                 for s in ['A','B','C','D']:
-                    code=f'ETAGERE-{e}-{s}'; db.execute("INSERT INTO location(code,name,kind,capacity,size) VALUES (?,?,?,?,?)",(code,f'Etagère {e} plateau {s}','ETAGERE',None,None))
+                    code = f"ETAGERE-{e}-{s}"
+                    db.execute(
+                        "INSERT INTO location(code,name,kind,capacity,size) VALUES (?,?,?,?,?)",
+                        (code, f"Étagère {e} plateau {s}", 'ETAGERE', None, None)
+                    )
             db.commit()
-        # seed admin
-        admin = db.execute("SELECT * FROM user WHERE role='admin' LIMIT 1").fetchone()
-        if admin is None:
-            username=os.getenv('ADMIN_USERNAME','admin'); pwd=os.getenv('ADMIN_PASSWORD') or 'ChangeMe!'
-            db.execute("INSERT INTO user(username,display_name,role,active,password_hash) VALUES (?,?,?,?,?)",(username,'Administrateur','admin',1,generate_password_hash(pwd)))
-            db.commit(); print('[WARN] ADMIN_PASSWORD non défini → admin/ChangeMe!')
 
-    with app.app_context(): init_db()
+        # 5) Normalisation des noms (après présence de 'size') -------------------
+        for e in (1,2,3):
+            for s in ("A","B","C","D"):
+                code = f"ETAGERE-{e}-{s}"
+                name = f"Étagère {e} (Encours) – Plateau {s}" if e in (1,2) else f"Étagère 3 (NOGO) – Plateau {s}"
+                db.execute("UPDATE location SET name=? WHERE code=? AND kind='ETAGERE'", (name, code))
+
+        db.execute("UPDATE location SET name='Grand Chariot '||code WHERE kind='SOL' AND size='GRAND'")
+        db.execute("UPDATE location SET name='Petit Chariot '||code WHERE kind='SOL' AND size='PETIT'")
+        db.commit()
+
+        # 6) Table user + seed admin --------------------------------------------
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS user(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            email TEXT,
+            display_name TEXT,
+            role TEXT NOT NULL CHECK(role IN (
+                'user','admin','douane','photo','inspection','rac','emballage','expedition'
+            )) DEFAULT 'admin',
+            active INTEGER NOT NULL DEFAULT 1,
+            password_hash TEXT,
+            last_login_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        
+        admin = db.execute(
+            "SELECT * FROM user WHERE role='admin' LIMIT 1"
+        ).fetchone()
+
+        if admin is None:
+            username = os.getenv('ADMIN_USERNAME','admin')
+            pwd = os.getenv('ADMIN_PASSWORD') or 'ChangeMe!'
+            db.execute(
+                "INSERT INTO user(username,display_name,role,active,password_hash) VALUES (?,?,?,?,?)",
+                (username, 'Administrateur', 'admin', 1, generate_password_hash(pwd))
+            )
+            db.commit()
+            print("[WARN] admin/ChangeMe! créé automatiquement")
+
 
     # helpers basic
     def item_by_id(item_id): return get_db().execute('SELECT * FROM item WHERE id=?',(item_id,)).fetchone()
@@ -168,6 +318,7 @@ def create_app():
         db=get_db(); it=item_by_id(item_id); dest=location_by_id(to_location_id)
         if not it or not dest: abort(400)
         if it['active']!=1: abort(400)
+
         # capacity check omitted (can_move available in processus if needed)
         _movement(item_id, action, user=user, from_id=it['location_id'], to_id=to_location_id)
         db.execute('UPDATE item SET location_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',(to_location_id,item_id)); db.commit(); return True
@@ -248,9 +399,13 @@ def create_app():
             od=(request.form.get('order_no') or '').strip() or None; bl=(request.form.get('bl_no') or '').strip() or None
             status='Attente douane' if sous_douane else 'Attente photo'
             db.execute("""
-                INSERT INTO item(sku,description,size,avis_no,order_no,bl_no,status,st_repair,repair_snpa,active,location_id)
-                VALUES (?,?,?,?,?,?,?,?,1,NULL)
-            """,(sku,desc,size,avis,od,bl,status,st_repair,repair_snpa))
+                INSERT INTO item(
+                    sku, description, size,
+                    avis_no, order_no, bl_no,
+                    status, st_repair, repair_snpa,
+                    active, location_id
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                    """, (sku, desc, size, avis, od, bl, status, st_repair, repair_snpa, 1, None))
             new_id=db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']; db.commit()
             flash(f'Article créé {sku} — statut: {status}','ok'); return redirect(url_for('item_detail', item_id=new_id))
         q=(request.args.get('q') or '').strip(); base_sql="SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.active=1"; params=[]
