@@ -340,14 +340,24 @@ def create_app():
     def _ensure_active(it):
         if not it or it['active']!=1: abort(404)
 
-    def role_required(role_name:str):
-        def _decorator(fn):
+    def role_required(*roles):
+        """Décorateur RBAC strict.
+        Ex : @role_required('admin', 'photo')
+        """
+        def decorator(fn):
             @wraps(fn)
-            def _wrap(*args, **kwargs):
-                # Bloc 3: activer la vérification du rôle ici
+            def wrapper(*args, **kwargs):
+                if not current_user.is_authenticated:
+                    abort(403)
+
+                user_role = getattr(current_user, "role", None)
+                if user_role not in roles:
+                    flash("Accès refusé (rôle requis)", "error")
+                    return abort(403)
+
                 return fn(*args, **kwargs)
-            return _wrap
-        return _decorator
+            return wrapper
+        return decorator
 
     # -------- Auth --------
     @app.route('/login', methods=['GET','POST'])
@@ -712,6 +722,62 @@ def create_app():
         if it['status']!=valid.get(kind): flash('Statut invalide pour expédition','error'); return redirect(url_for('work_expe'))
         _movement(item_id, f'EXPE_{kind.upper()}'); log_delete(item_id, user=getattr(current_user,'username',None))
         flash('Expédition effectuée → Item supprimé (logique)','ok'); return redirect(url_for('work_expe'))
+
+    @app.route('/archives')
+    @login_required
+    @role_required('admin','emballage','inspection')
+    def archives():
+        db = get_db()
+        q = (request.args.get("q") or "").strip()
+
+        sql = """
+            SELECT i.*, l.code AS loc_code
+            FROM item i
+            LEFT JOIN location l ON i.location_id=l.id
+            WHERE i.active = 0
+        """
+        params = []
+
+        if q:
+            sql += " AND (i.sku LIKE ? OR i.description LIKE ?)"
+            params.extend([f"%{q}%", f"%{q}%"])
+
+        sql += " ORDER BY updated_at DESC LIMIT 300"
+
+        rows = db.execute(sql, params).fetchall()
+
+        return render_template("archives.html", items=rows, q=q)
+
+        @app.route('/archives/export')
+        @login_required
+        @role_required('admin','emballage','inspection')
+        def archives_export():
+            import csv, io
+
+            db = get_db()
+            rows = db.execute("""
+                SELECT id, sku, status, updated_at, avis_no, order_no, bl_no
+                FROM item
+                WHERE active = 0
+                ORDER BY updated_at DESC
+            """).fetchall()
+
+            buffer = io.StringIO()
+            writer = csv.writer(buffer, delimiter=';')
+            writer.writerow(["id", "sku", "status", "updated_at", "avis_no", "order_no", "bl_no"])
+
+            for r in rows:
+                writer.writerow([
+                    r["id"], r["sku"], r["status"], r["updated_at"],
+                    r["avis_no"], r["order_no"], r["bl_no"]
+                ])
+
+            buffer.seek(0)
+            return app.response_class(
+                buffer.read(),
+                mimetype="text/csv",
+                headers={"Content-Disposition": "attachment; filename=archives.csv"}
+            )
 
     return app
 
