@@ -1,51 +1,127 @@
-{% extends 'base.html' %}
-{% block title %}Admin – Utilisateurs{% endblock %}
+{% extends "base.html" %}
+{% block title %}⚙️ Administration – Utilisateurs{% endblock %}
+
 {% block content %}
-<h2>👤 Administration – Utilisateurs</h2>
-<div class='card'>
-  <h3>Créer un utilisateur local</h3>
-  <form method='post' action='{{ url_for('admin_users_create') }}' class='row'>
-    <input name='username' placeholder='identifiant (unique)' required>
-    <input name='display_name' placeholder='Nom affiché'>
-    <select name='role'>
-      <option value='user'>user</option>
-      <option value='admin'>admin</option>
-      <option value='douane'>douane</option>
-      <option value='photo'>photo</option>
-      <option value='inspection'>inspection</option>
-      <option value='rac'>rac</option>
-      <option value='emballage'>emballage</option>
-      <option value='expedition'>expedition</option>
-    </select>
-    <button class='btn btn-primary' type='submit'>Créer</button>
+
+<h2 style="margin-bottom:1rem;">⚙️ Administration — Utilisateurs</h2>
+
+
+<!-- ==================== CRÉATION UTILISATEUR ==================== -->
+<div class="card">
+  <h3>Créer un utilisateur</h3>
+
+  <form method="post" action="{{ url_for('admin_users_create') }}"
+        class="row" style="gap:1rem; flex-wrap:wrap;" onsubmit="disableOnSubmit(this)">
+
+    <div style="min-width:220px;">
+      <label class="muted" style="display:block;margin-bottom:.25rem;">Identifiant (unique)</label>
+      <input name="username" required placeholder="Nom de connexion">
+    </div>
+
+    <div style="min-width:220px;">
+      <label class="muted" style="display:block;margin-bottom:.25rem;">Nom affiché</label>
+      <input name="display_name" placeholder="Nom visible">
+    </div>
+
+    <div style="min-width:200px;">
+      <label class="muted" style="display:block;margin-bottom:.25rem;">Rôle</label>
+      <select name="role">
+        <option value="user">user</option>
+        <option value="admin">admin</option>
+        <option value="douane">douane</option>
+        <option value="photo">photo</option>
+        <option value="inspection">inspection</option>
+        <option value="rac">rac</option>
+        <option value="emballage">emballage</option>
+        <option value="expedition">expedition</option>
+      </select>
+    </div>
+
+    <button class="btn btn-primary" type="submit" style="margin-top:1.3rem;">
+      Ajouter
+    </button>
+
   </form>
 </div>
-<div class='card'>
-  <h3>Liste</h3>
-  <table class='table'>
-    <thead><tr><th>ID</th><th>Username</th><th>Nom affiché</th><th>Rôle</th><th>Actif</th><th>Dernière connexion</th><th>Créé le</th><th>Actions</th></tr></thead>
-    <tbody>
-      {% for u in users %}
-      <tr>
-        <td>{{ u['id'] }}</td>
-        <td>{{ u['username'] }}</td>
-        <td>{{ u['display_name'] or '—' }}</td>
-        <td>{{ u['role'] }}</td>
-        <td>{{ '✅' if u['active'] else '⛔' }}</td>
-        <td>{{ u['last_login_at'] or '—' }}</td>
-        <td>{{ u['created_at'] }}</td>
-        <td>
-          <form method='post' action='{{ url_for('admin_users_toggle', uid=u['id']) }}' class='inline'>
-            <button class='btn' type='submit'>{{ 'Désactiver' if u['active'] else 'Activer' }}</button>
-          </form>
-          <form method='post' action='{{ url_for('admin_users_password', uid=u['id']) }}' class='inline'>
-            <input type='password' name='password' placeholder='Nouveau mot de passe (>=8)'>
-            <button class='btn' type='submit'>Changer MDP</button>
-          </form>
-        </td>
-      </tr>
-      {% else %}<tr><td colspan='8' class='muted'>Aucun utilisateur.</td></tr>{% endfor %}
-    </tbody>
-  </table>
+
+
+
+<!-- ==================== LISTE DES UTILISATEURS ==================== -->
+<div class="card" style="margin-top:1.5rem;">
+  <h3>Liste des utilisateurs</h3>
+
+  <div style="overflow:auto; margin-top:1rem;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Username</th>
+          <th>Nom affiché</th>
+          <th>Rôle</th>
+          <th>Actif</th>
+          <th>Dernière connexion</th>
+          <th>Créé le</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+
+        {% for u in users %}
+        <tr>
+
+          <td>{{ u['id'] }}</td>
+          <td><strong>{{ u['username'] }}</strong></td>
+          <td>{{ u['display_name'] or '—' }}</td>
+          <td>{{ u['role'] }}</td>
+
+          <td>
+            {% if u['active'] %}
+              <span class="badge" style="background:var(--ok);color:#052e16;">Actif</span>
+            {% else %}
+              <span class="badge" style="background:var(--danger);">Inactif</span>
+            {% endif %}
+          </td>
+
+          <td>{{ u['last_login_at'] or '—' }}</td>
+          <td style="white-space:nowrap;">{{ u['created_at'] }}</td>
+
+          <td style="white-space:nowrap;">
+
+            <!-- Activation / Désactivation -->
+            <form method="post"
+                  action="{{ url_for('admin_users_toggle', uid=u['id']) }}"
+                  class="inline" style="display:inline;"
+                  onsubmit="disableOnSubmit(this)">
+              <button class="btn btn-ghost" type="submit">
+                {% if u['active'] %}Désactiver{% else %}Activer{% endif %}
+              </button>
+            </form>
+
+            <!-- Changement mot de passe -->
+            <form method="post"
+                  action="{{ url_for('admin_users_password', uid=u['id']) }}"
+                  class="inline" style="display:inline;"
+                  onsubmit="disableOnSubmit(this)">
+              <input type="password" name="password"
+                     placeholder="Nouveau MDP (≥8)"
+                     style="width:130px;">
+              <button class="btn" type="submit">MDP</button>
+            </form>
+
+          </td>
+
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="muted">Aucun utilisateur trouvé.</td>
+        </tr>
+        {% endfor %}
+
+      </tbody>
+    </table>
+  </div>
+
 </div>
+
 {% endblock %}

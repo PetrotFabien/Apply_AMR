@@ -1,28 +1,112 @@
-
 {% extends "base.html" %}
-{% block title %}Poste Photo – Raspi Stock{% endblock %}
+{% block title %}📸 Poste Photo – Raspi Stock{% endblock %}
+
 {% block content %}
-<h2>📷 Poste Photo</h2>
-<p>Articles en attente / en cours de photo.</p>
-<table class="table">
-  <thead><tr><th>ID</th><th>SKU</th><th>Statut</th><th>Emplacement</th><th>Action</th></tr></thead>
-  <tbody>
+
+<h2 style="margin-bottom:1rem;">📸 Poste Photo</h2>
+
+<p class="muted" style="margin-bottom:1.4rem;">
+  Articles en <strong>Attente photo</strong>.  
+  Après “Photo OK”, un placement est obligatoire : <strong>Étagère</strong> ou <strong>SOL (AMR)</strong>.
+</p>
+
+<div class="cards">
   {% for it in items %}
-    <tr>
-      <td>{{ it['id'] }}</td>
-      <td>{{ it['sku'] }}</td>
-      <td>{{ it['status'] }}</td>
-      <td>{{ it['loc_code'] or '—' }}</td>
-      <td>
-        <form method="post" action="{{ url_for('send_to_photo', item_id=it['id']) }}" class="inline">
-          <button type="submit">Envoyer au poste</button>
-        </form>
-        <a href="{{ url_for('item_detail', item_id=it['id']) }}">Détails / Upload</a>
-      </td>
-    </tr>
+  <div class="card">
+
+    <div class="row" style="justify-content:space-between; align-items:center;">
+      <h3 style="margin:0;">SKU {{ it['sku'] }}</h3>
+      <span class="badge">Attente photo</span>
+    </div>
+
+    <div class="muted" style="margin:.5rem 0;">
+      <span class="badge">Taille : {{ it['size'] }}</span>
+      <span class="badge">StRepair : {{ '1' if it['st_repair'] else '0' }}</span>
+      <span class="badge">RepairSNPA : {{ '1' if it['repair_snpa'] else '0' }}</span>
+      <span class="badge">Empl : {{ it['loc_code'] or '—' }}</span>
+    </div>
+
+    <div class="row-right" style="margin-top:.6rem; gap:.6rem;">
+      <!-- Photo OK (ouvre le choix du placement) -->
+      {{ url_for(
+        <button class="btn btn-ok" type="submit">📷 Photo OK</button>
+      </form>
+
+      <!-- Détails -->
+      {{ url_for(
+        Détails
+      </a>
+    </div>
+
+  </div>
   {% else %}
-    <tr><td colspan="5" class="muted">Aucun article.</td></tr>
+    <div class="card"><em>Aucun item en attente photo.</em></div>
   {% endfor %}
-  </tbody>
-</table>
+</div>
+
+
+<!-- =============== CHOIX DE PLACEMENT (modal basique) =============== -->
+{% if choose == 'storage' and modal_item_id %}
+<div class="modal-backdrop" style="z-index:50;">
+  <div class="modal" style="max-width:650px;">
+
+    <h3>Placement obligatoire</h3>
+    <p class="muted">Choisissez un emplacement de stockage pour cet article.</p>
+
+    <div class="grid2" style="margin-top:1rem;">
+
+      <!-- ÉTAGÈRE -->
+      <div class="card">
+        <h4>Étagère</h4>
+        {{ url_for(
+          <input type="hidden" name="item_id" value="{{ modal_item_id }}">
+          <label>Niveau</label>
+          <select name="level">
+            <option value="1">1 (Encours)</option>
+            <option value="2">2 (Encours)</option>
+            <option value="3"
+              {% set current = items | selectattr('id','equalto',modal_item_id)
+                                    | map(attribute='status')
+                                    | list | first %}
+              {% if current != 'NOGO' %}
+                disabled
+              {% endif %}
+            >3 (NOGO)</option>
+          </select>
+
+          <label style="margin-top:.6rem;">Plateau</label>
+          <select name="plate">
+            <option>A</option><option>B</option><option>C</option><option>D</option>
+          </select>
+
+          <button class="btn btn-primary" type="submit" style="margin-top:.8rem;">Placer étagère</button>
+        </form>
+      </div>
+
+      <!-- SOL (AMR) -->
+      <div class="card">
+        <h4>SOL (AMR)</h4>
+        {{ url_for(
+          <input type="hidden" name="item_id" value="{{ modal_item_id }}">
+          <label>Chariot</label>
+          <select name="amr_size">
+            <option value="GRAND">GRAND</option>
+            <option value="PETIT" selected>PETIT</option>
+          </select>
+
+          <button class="btn btn-ok" type="submit" style="margin-top:.8rem;">Placer AMR</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="row-right" style="margin-top:1.2rem;">
+      <button class="btn btn-ghost" onclick="document.querySelector('.modal-backdrop').remove()">
+        Annuler
+      </button>
+    </div>
+
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}

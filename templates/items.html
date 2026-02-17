@@ -1,48 +1,100 @@
-
 {% extends "base.html" %}
-{% block title %}Articles – Raspi Stock{% endblock %}
+{% block title %}📦 Articles – Raspi Stock{% endblock %}
+
 {% block content %}
-<h2>Articles</h2>
 
-<form method="get" class="row">
-  <input type="text" name="q" placeholder="Recherche (SKU, description, avis, commande, BL)" value="{{ q or '' }}">
-  <button type="submit">Rechercher</button>
-</form>
+<h2 style="margin-bottom:1rem;">📦 Articles</h2>
 
-<h3>Créer un article</h3>
-<form method="post" class="row">
-  <input name="sku" placeholder="SKU" required>
-  <input name="description" placeholder="Description">
-  <input name="avis_no" placeholder="Numéro d'avis">
-  <input name="order_no" placeholder="Numéro de commande">
-  <input name="bl_no" placeholder="Numéro de BL">
-  <button type="submit">Créer</button>
-</form>
+<!-- RECHERCHE -->
+<div class="card">
+  <form method="get" class="row" style="gap:.6rem;align-items:flex-end;">
+    <div>
+      <label for="q" class="muted" style="display:block;margin-bottom:.25rem;">Recherche</label>
+      <input id="q" name="q" type="text" placeholder="SKU / Description / Avis / Commande / BL"
+             value="{{ q or '' }}" style="min-width:320px;">
+    </div>
+    <button class="btn" type="submit">Rechercher</button>
+    {% if q %}
+      <a class="btn btn-ghost" href="{{ url_for('items') }}">Effacer</a>
+    {% endif %}
+  </form>
+</div>
 
-<table class="table">
-  <thead>
-    <tr>
-      <th>ID</th><th>SKU</th><th>Description</th>
-      <th>Avis</th><th>Commande</th><th>BL</th>
-      <th>Statut</th><th>Emplacement</th><th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for it in items %}
-      <tr>
-        <td>{{ it['id'] }}</td>
-        <td>{{ it['sku'] }}</td>
-        <td>{{ it['description'] or '' }}</td>
-        <td>{{ it['avis_no'] or '—' }}</td>
-        <td>{{ it['order_no'] or '—' }}</td>
-        <td>{{ it['bl_no'] or '—' }}</td>
-        <td>{{ it['status'] }}</td>
-        <td>{{ it['loc_code'] or '—' }}</td>
-        <td><a href="{{ url_for('item_detail', item_id=it['id']) }}">Détails</a></td>
-      </tr>
-    {% else %}
-      <tr><td colspan="9" class="muted">Aucun résultat.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% endblock %}
+<!-- CRÉATION (RÉCEPTION) -->
+<div class="card">
+  <h3>🧾 Réception — Créer un article</h3>
+  <form method="post" class="row" style="gap:1rem;flex-wrap:wrap;" onsubmit="disableOnSubmit(this)">
+    <div style="min-width:260px;">
+      <label class="muted" style="display:block;margin-bottom:.25rem;">SKU</label>
+      <input name="sku" placeholder="SKU (auto si vide)">
+      <div class="muted" style="font-size:.85rem;margin-top:.25rem;">Laisse vide pour auto-incrément (SKU-00001 …)</div>
+    </div>
+
+    <div style="flex:1;min-width:300px;">
+      <label class="muted" style="display:block;margin-bottom:.25rem;">Description</label>
+      <input name="description" placeholder="Description (facultatif)">
+    </div>
+
+    <div style="min-width:180px;">
+      <label class="muted" style="display:block;margin-bottom:.25rem;">Taille</label>
+      <select name="size">
+        <option value="PETIT" selected>PETIT</option>
+        <option value="GRAND">GRAND</option>
+      </select>
+    </div>
+
+    <div style="min-width:140px; display:flex; gap:1rem; align-items:center;">
+      <label class="muted"><input type="checkbox" name="sous_douane"> Sous douane</label>
+      <label class="muted"><input type="checkbox" name="st_repair"> StRepair</label>
+      <label class="muted"><input type="checkbox" name="repair_snpa"> RepairSNPA</label>
+    </div>
+
+    <div class="row" style="gap:1rem;flex-wrap:wrap;width:100%;">
+      <div style="min-width:180px;">
+        <label class="muted" style="display:block;margin-bottom:.25rem;">Avis</label>
+        <input name="avis_no" placeholder="N° avis">
+      </div>
+      <div style="min-width:180px;">
+        <label class="muted" style="display:block;margin-bottom:.25rem;">Commande</label>
+        <input name="order_no" placeholder="N° commande">
+      </div>
+      <div style="min-width:180px;">
+        <label class="muted" style="display:block;margin-bottom:.25rem;">BL</label>
+        <input name="bl_no" placeholder="N° BL">
+      </div>
+    </div>
+
+    <div style="width:100%;display:flex;gap:.6rem;justify-content:flex-end;margin-top:.5rem;">
+      <button class="btn btn-primary" type="submit">Créer</button>
+    </div>
+  </form>
+</div>
+
+<!-- LISTE -->
+<div class="card">
+  <h3>Liste des articles (actifs)</h3>
+  <div style="overflow:auto;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="white-space:nowrap;">ID</th>
+          <th>SKU</th>
+          <th style="white-space:nowrap;">Taille</th>
+          <th>Description</th>
+          <th style="white-space:nowrap;">StRepair</th>
+          <th style="white-space:nowrap;">RepairSNPA</th>
+          <th>Statut</th>
+          <th style="white-space:nowrap;">Empl.</th>
+          <th style="white-space:nowrap;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+          <tr>
+            <td>{{ it['id'] }}</td>
+            <td><strong>{{ it['sku'] }}</strong></td>
+            <td>{{ it['size'] or '—' }}</td>
+            <td>{{ it['description'] or '' }}</td>
+            <td>{{ '1' if it['st_repair'] else '0' }}</td>
+            <td>{{ '1' if it['repair_snpa'] else '0' }}</td>
+

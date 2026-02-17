@@ -1,44 +1,97 @@
-
 {% extends "base.html" %}
-{% block title %}Dashboard – Raspi Stock{% endblock %}
+{% block title %}🏠 Dashboard – Raspi Stock{% endblock %}
+
 {% block content %}
-<h2>Dashboard</h2>
+
+<h2 style="margin-bottom:1rem;">🏠 Tableau de bord</h2>
+
 <div class="cards">
+
+  <!-- CARTE SOL GRANDS -->
   <div class="card">
-    <h3>Sol</h3>
-    <p><strong>{{ kpi['SOL']['occupied'] }}</strong> / {{ kpi['SOL']['total'] }} occupés</p>
-    <p class="muted">{{ kpi['SOL']['free'] }} libres</p>
+    <h3>Chariots GRAND</h3>
+    <p>
+      <strong>{{ kg['GRAND']['occupied'] }}</strong> /
+      {{ kg['GRAND']['total'] }} occupés
+    </p>
+    <p class="muted">{{ kg['GRAND']['free'] }} disponibles</p>
   </div>
+
+  <!-- CARTE SOL PETITS -->
   <div class="card">
-    <h3>Etagères</h3>
-    <p><strong>{{ kpi['ETAGERE']['occupied'] }}</strong> / {{ kpi['ETAGERE']['total'] }} occupés</p>
-    <p class="muted">{{ kpi['ETAGERE']['free'] }} libres</p>
+    <h3>Chariots PETIT</h3>
+    <p>
+      <strong>{{ kg['PETIT']['occupied'] }}</strong> /
+      {{ kg['PETIT']['total'] }} occupés
+    </p>
+    <p class="muted">{{ kg['PETIT']['free'] }} disponibles</p>
   </div>
+
+  <!-- CARTE STATUTS -->
   <div class="card">
-    <h3>Statuts</h3>
-    <ul class="compact">
-      {% for row in statuses %}
-        <li>{{ row['status'] }} : {{ row['c'] }}</li>
-      {% else %}
-        <li>Aucun article.</li>
-      {% endfor %}
-    </ul>
+    <h3>Statuts actifs</h3>
+    {% if statuses %}
+      <ul class="compact">
+        {% for row in statuses %}
+          <li>{{ row["status"] }} : {{ row["c"] }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Aucun article actif.</p>
+    {% endif %}
   </div>
+
 </div>
 
-<div class="grid2">
-  <div>
-    <h3>Flux de travail</h3>
-    <ul>
-      <li><a href="{{ url_for('work_photo') }}">📷 Poste Photo</a></li>
-      <li><a href="{{ url_for('work_inspection') }}">🔎 Inspection</a></li>
-      <li><a href="{{ url_for('work_emballage') }}">📦 Emballage</a></li>
-    </ul>
-  </div>
-  <div>
-    <h3>Accès rapide</h3>
-    <p><a href="{{ url_for('items') }}">Créer / Rechercher des articles</a></p>
-    <p><a href="{{ url_for('locations') }}">Voir tous les emplacements</a></p>
-  </div>
+
+<!-- SECTION RAPIDE : NAVIGATION FLUX -->
+<h2 style="margin-top:2.2rem;">⚡ Flux opérationnel</h2>
+
+<div class="cards">
+
+  <a class="card" href="{{ url_for('work_douane') }}">
+    <h3>🛃 Zone Douane</h3>
+    <p class="muted">Articles en attente douane</p>
+  </a>
+
+  <a class="card" href="{{ url_for('work_photo') }}">
+    <h3>📸 Poste Photo</h3>
+    <p class="muted">Flux Photo > Étape obligatoire</p>
+  </a>
+
+  <a class="card" href="{{ url_for('work_inspection') }}">
+    <h3>🔍 Inspection</h3>
+    <p class="muted">Contrôles + éventuel Pool</p>
+  </a>
+
+  <a class="card" href="{{ url_for('work_rac') }}">
+    <h3>🧩 RAC</h3>
+    <p class="muted">Validation finale avant emballage</p>
+  </a>
+
+  <a class="card" href="{{ url_for('work_emballage') }}">
+    <h3>📦 Emballage</h3>
+    <p class="muted">Choix ST / T2 ou direct client (Repair)</p>
+  </a>
+
+  <a class="card" href="{{ url_for('work_expe') }}">
+    <h3>🚚 Expédition</h3>
+    <p class="muted">Fin du flux (suppression logique)</p>
+  </a>
+
 </div>
+
+
+<!-- SECTION ADMIN -->
+{% if current_user.role == 'admin' %}
+<h2 style="margin-top:2.2rem;">⚙️ Administration</h2>
+
+<div class="cards">
+  <a class="card" href="{{ url_for('admin_users') }}">
+    <h3>👤 Gestion des utilisateurs</h3>
+    <p class="muted">Comptes, rôles, activation</p>
+  </a>
+</div>
+{% endif %}
+
 {% endblock %}

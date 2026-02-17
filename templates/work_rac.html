@@ -1,29 +1,56 @@
-{% extends 'base.html' %}
-{% block title %}RAC – Raspi Stock{% endblock %}
+{% extends "base.html" %}
+{% block title %}🧩 RAC – Raspi Stock{% endblock %}
+
 {% block content %}
-<h2>🧩 RAC</h2>
-<p class='muted'>Items en <span class='badge rac'>Attente RAC</span> — OK → Attente emballage, NOK → Prison.</p>
-<div class='grid-cards'>
+
+<h2 style="margin-bottom:1rem;">🧩 RAC</h2>
+
+<p class="muted" style="margin-bottom:1.4rem;">
+  Articles en <strong>Attente RAC</strong>.  
+  <br>• ✔ RAC OK → passe en <strong>Attente emballage</strong>  
+  <br>• ✖ RAC NOK → envoie l’article en <strong>Prison</strong>
+</p>
+
+<div class="cards">
+
   {% for it in items %}
-  <div class='card'>
-    <div class='row' style='justify-content:space-between'>
-      <h4>SKU {{ it['sku'] }}</h4>
-      <span class='badge rac'>Attente RAC</span>
+  <div class="card">
+
+    <div class="row" style="justify-content:space-between;align-items:center;">
+      <h3 style="margin:0;">SKU {{ it['sku'] }}</h3>
+      <span class="badge">Attente RAC</span>
     </div>
-    <div class='kpi'>
-      <span class='badge'>Taille : {{ it['size'] }}</span>
-      <span class='badge'>Emplacement : {{ it['loc_code'] or '—' }}</span>
-    </div>
-    <div class='row-right' style='margin-top:.8rem'>
-      <form method='post' action='{{ url_for('rac_ok', item_id=it['id']) }}' class='inline'>
-        <button class='btn btn-ok' type='submit'>✔ RAC OK</button>
+
+    <p class="muted" style="margin:.6rem 0;">
+      <span class="badge">Taille : {{ it['size'] }}</span>
+      <span class="badge">Empl : {{ it['loc_code'] or '—' }}</span>
+      <span class="badge">StRepair : {{ '1' if it['st_repair'] else '0' }}</span>
+      <span class="badge">RepairSNPA : {{ '1' if it['repair_snpa'] else '0' }}</span>
+    </p>
+
+    <div class="row-right" style="gap:.6rem;margin-top:.8rem;">
+      <!-- RAC OK -->
+      {{ url_for(
+        <button class="btn btn-ok" type="submit">✔ OK</button>
       </form>
-      <form method='post' action='{{ url_for('rac_nok', item_id=it['id']) }}' class='inline'>
-        <button class='btn btn-danger' type='submit'>✖ RAC NOK</button>
+
+      <!-- RAC NOK -->
+      {{ url_for(
+        <button class="btn btn-danger" type="submit">✖ NOK</button>
       </form>
-      <a class='btn' href='{{ url_for('item_detail', item_id=it['id']) }}'>Détails</a>
+
+      <!-- détails -->
+      {{ url_for(
+        Détails
+      </a>
     </div>
+
   </div>
-  {% else %}<div class='card'><em>Aucun item en RAC.</em></div>{% endfor %}
+
+  {% else %}
+    <div class="card"><em>Aucun article en attente RAC.</em></div>
+  {% endfor %}
+
 </div>
+
 {% endblock %}

@@ -1,7 +1,11 @@
 import os, base64, time
-import requests
+try:
+    import requests
+except Exception:  # sandbox safe
+    requests = None
 
 class MiRClient:
+    """Client minimal MiR. En mode DRY-RUN si MIR_DRY_RUN=true."""
     def __init__(self, base=None, user=None, password=None, verify=False, timeout=8):
         self.dry = (os.getenv("MIR_DRY_RUN","false").lower()=="true")
         self.base = (base or os.getenv("MIR_BASE_URL","")) .rstrip('/')
@@ -10,27 +14,32 @@ class MiRClient:
         self.verify = verify
         self.timeout = timeout
         self._t0 = time.time()
-        if not self.dry:
-            if not self.base: raise RuntimeError("MIR_BASE_URL manquant")
-            if not self.user or not self.password: raise RuntimeError("MIR_USER/MIR_PASS manquants")
+        if not self.dry and requests is not None:
+            if not self.base:
+                raise RuntimeError("MIR_BASE_URL manquant")
+            if not self.user or not self.password:
+                raise RuntimeError("MIR_USER/MIR_PASS manquants")
             token = base64.b64encode(f"{self.user}:{self.password}".encode()).decode()
             self.headers = {
                 'Authorization': f'Basic {token}',
                 'Content-Type': 'application/json',
                 'Accept-Language': 'en-US'
             }
+
     def _get(self,path):
-        if self.dry:
+        if self.dry or requests is None:
             return {'dry_run': True, 'endpoint': path}
         r=requests.get(f"{self.base}{path}",headers=self.headers,timeout=self.timeout,verify=self.verify)
         r.raise_for_status(); return r.json()
+
     def _post(self,path,payload):
-        if self.dry:
+        if self.dry or requests is None:
             return {'dry_run': True, 'endpoint': path, 'payload': payload}
         r=requests.post(f"{self.base}{path}",json=payload,headers=self.headers,timeout=self.timeout,verify=self.verify)
         r.raise_for_status(); return r.json() if r.text else {}
+
     def status(self):
-        if self.dry:
+        if self.dry or requests is None:
             elapsed=time.time()-self._t0
             battery=max(5,100-int(elapsed)%100)
             return {
@@ -42,13 +51,15 @@ class MiRClient:
                 'position': {'x': round(1+0.01*elapsed,2),'y':round(2+0.02*elapsed,2),'orientation':0.0}
             }
         return self._get('/status')
+
     def missions(self):
-        if self.dry:
+        if self.dry or requests is None:
             return [
                 {'name':'POSTE-PHOTO','guid':'11111111-2222-3333-4444-555555555555'},
                 {'name':'POSTE-INSPECTION','guid':'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'},
                 {'name':'POSTE-EMBALLAGE','guid':'99999999-8888-7777-6666-555555555555'}
             ]
         return self._get('/missions')
+
     def start_mission(self,guid:str):
         return self._post('/mission_queue',{'mission_id':guid})

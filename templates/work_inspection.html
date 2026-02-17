@@ -1,33 +1,93 @@
-
 {% extends "base.html" %}
-{% block title %}Inspection – Raspi Stock{% endblock %}
+{% block title %}🔍 Inspection – Raspi Stock{% endblock %}
+
 {% block content %}
-<h2>🔎 Inspection</h2>
-<table class="table">
-  <thead><tr><th>ID</th><th>SKU</th><th>Photo</th><th>Action</th></tr></thead>
-  <tbody>
+
+<h2 style="margin-bottom:1rem;">🔍 Inspection</h2>
+
+<p class="muted" style="margin-bottom:1.4rem;">
+  Articles en <strong>Attente inspection</strong>.  
+  “Inspection OK” ouvre un choix : <strong>Pool</strong> (suppression logique) ou <strong>Attente emballage</strong>.
+</p>
+
+<div class="cards">
   {% for it in items %}
-    <tr>
-      <td>{{ it['id'] }}</td>
-      <td>{{ it['sku'] }}</td>
-      <td>
-        {% if it['photo_path'] %}
-          <img src="{{ url_for('uploads', filename=it['photo_path']) }}" alt="Photo" style="max-height:64px">
-        {% else %}
-          <span class="muted">—</span>
-        {% endif %}
-      </td>
-      <td>
-        <form method="post" class="inline">
-          <input type="hidden" name="item_id" value="{{ it['id'] }}">
-          <button type="submit" name="result" value="OK">✔ OK</button>
-          <button type="submit" name="result" value="NOK" class="danger">✖ NOK</button>
-        </form>
-      </td>
-    </tr>
+  <div class="card">
+
+    <div class="row" style="justify-content:space-between;">
+      <h3 style="margin:0;">SKU {{ it['sku'] }}</h3>
+      <span class="badge">Attente inspection</span>
+    </div>
+
+    <p class="muted" style="margin:.5rem 0;">
+      <span class="badge">Taille : {{ it['size'] or '—' }}</span>
+      <span class="badge">Empl : {{ it['loc_code'] or '—' }}</span>
+    </p>
+
+    <div class="row-right" style="gap:.6rem;margin-top:.6rem;">
+      <!-- OK (ouvre popup Pool) -->
+      {{ url_for(
+        <button class="btn btn-ok" type="submit">✔ OK</button>
+      </form>
+
+      <!-- NOK (Prison) -->
+      {{ url_for(
+        <button class="btn btn-danger" type="submit">✖ NOK</button>
+      </form>
+
+      <!-- Détails -->
+      {{ url_for(
+        Détails
+      </a>
+    </div>
+
+  </div>
   {% else %}
-    <tr><td colspan="4" class="muted">Aucun article.</td></tr>
+    <div class="card"><em>Aucun article en attente inspection.</em></div>
   {% endfor %}
-  </tbody>
-</table>
+</div>
+
+
+<!-- ======================== POPUP POOL ======================== -->
+
+{% if ask_pool and modal_item_id %}
+<div class="modal-backdrop" style="z-index:50;">
+  <div class="modal" style="max-width:550px;">
+
+    <h3>Placement en Pool</h3>
+    <p class="muted">
+      Inspection OK.<br>
+      Voulez-vous placer l’article en <strong>Pool</strong> (suppression logique) ?
+    </p>
+
+    <div class="row" style="margin-top:1.2rem;justify-content:flex-end;gap:.7rem;">
+
+      <!-- POOLE (YES) -->
+      {{ url_for(
+        <input type="hidden" name="item_id" value="{{ modal_item_id }}">
+        <button class="btn btn-ok" type="submit" name="choice" value="oui">
+          Oui — supprimer
+        </button>
+      </form>
+
+      <!-- ATTENTE EMBALLAGE (NO) -->
+      {{ url_for(
+        <input type="hidden" name="item_id" value="{{ modal_item_id }}">
+        <button class="btn btn-warn" type="submit" name="choice" value="non">
+          Non — envoyer à l’emballage
+        </button>
+      </form>
+
+    </div>
+
+    <div class="row-right" style="margin-top:1rem;">
+      <button class="btn btn-ghost" onclick="document.querySelector('.modal-backdrop').remove()">
+        Annuler
+      </button>
+    </div>
+
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}

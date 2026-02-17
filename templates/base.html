@@ -1,41 +1,73 @@
-
 <!doctype html>
 <html lang="fr">
 <head>
   <meta charset="utf-8">
   <title>{% block title %}Raspi Stock{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- CSS principal -->
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  {% block head %}{% endblock %}
 </head>
+
 <body>
-  <header class="wrap">
-    <h1>📦 Raspi Stock</h1>
-    <nav>
-      <a href="{{ url_for('index') }}">Dashboard</a>
-      <a href="{{ url_for('items') }}">Articles</a>
-      <a href="{{ url_for('locations') }}">Emplacements</a>
-      <span>|</span>
-      <a href="{{ url_for('work_photo') }}">Poste Photo</a>
-      <a href="{{ url_for('work_inspection') }}">Inspection</a>
-      <a href="{{ url_for('work_emballage') }}">Emballage</a>
-    </nav>
-  </header>
 
-  <main class="wrap">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <ul class="flash">
-          {% for cat, msg in messages %}
-            <li class="{{ cat }}">{{ msg }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    {% endwith %}
-    {% block content %}{% endblock %}
-  </main>
+<header class="topbar">
+  <div class="logo">📦 Raspi Stock</div>
 
-  <footer class="wrap">
-    <small>Local • Flask + SQLite • {{ request.path }}</small>
-  </footer>
+  <nav class="menu">
+    <a href="{{ url_for('index') }}" title="Dashboard">🏠</a>
+    <a href="{{ url_for('items') }}" title="Articles">📦</a>
+    <a href="{{ url_for('locations') }}" title="Emplacements">📍</a>
+
+    <span class="divider">|</span>
+
+    <a href="{{ url_for('work_douane') }}" title="Douane">🛃</a>
+    <a href="{{ url_for('work_photo') }}" title="Photo">📸</a>
+    <a href="{{ url_for('work_inspection') }}" title="Inspection">🔍</a>
+    <a href="{{ url_for('work_rac') }}" title="RAC">🧩</a>
+    <a href="{{ url_for('work_emballage') }}" title="Emballage">📦</a>
+    <a href="{{ url_for('work_expe') }}" title="Expédition">🚚</a>
+
+    {% if current_user.is_authenticated %}
+      <span class="user-zone">
+        {{ current_user.display_name }}
+        {% if current_user.role == 'admin' %}
+          · <a href="{{ url_for('admin_users') }}" title="Administration">⚙️</a>
+        {% endif %}
+        · <a href="{{ url_for('logout') }}" title="Déconnexion">🔓</a>
+      </span>
+    {% else %}
+      <span class="user-zone">
+        <a href="{{ url_for('login') }}" title="Connexion">🔐</a>
+      </span>
+    {% endif %}
+  </nav>
+</header>
+
+<main class="page-content">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flashes">
+        {% for cat, msg in messages %}
+          <li class="flash {{ cat }}">{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  <small>Raspi Stock • Flask + SQLite • {{ request.path }}</small>
+</footer>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% block scripts %}{% endblock %}
+
 </body>
 </html>
+``
