@@ -9,11 +9,8 @@
 
 <div class="grid2">
 
-    <!-- ============================================================ -->
-    <!-- ==================  CARTE INFORMATIONS  ===================== -->
-    <!-- ============================================================ -->
+    <!-- ===================== INFORMATIONS ===================== -->
     <div class="card">
-
         <h3>🔎 Informations générales</h3>
 
         <p><strong>ID :</strong> {{ it.id }}</p>
@@ -22,61 +19,37 @@
         <p><strong>Taille :</strong> {{ it.size or "—" }}</p>
 
         <p><strong>StRepair :</strong>
-            {% if it.st_repair %}
-                <span class="badge">Oui</span>
-            {% else %}
-                <span class="badge">Non</span>
-            {% endif %}
+            {% if it.st_repair %}<span class="badge">Oui</span>{% else %}<span class="badge">Non</span>{% endif %}
         </p>
 
         <p><strong>Repair SNPA :</strong>
-            {% if it.repair_snpa %}
-                <span class="badge">Oui</span>
-            {% else %}
-                <span class="badge">Non</span>
-            {% endif %}
+            {% if it.repair_snpa %}<span class="badge">Oui</span>{% else %}<span class="badge">Non</span>{% endif %}
         </p>
 
-        <p><strong>Statut :</strong>
-            <span class="badge">{{ it.status }}</span>
-        </p>
+        <p><strong>Statut :</strong> <span class="badge">{{ it.status }}</span></p>
 
-        <p><strong>Emplacement :</strong>
-            {{ loc.code if loc else "—" }}
-        </p>
+        <p><strong>Emplacement :</strong> {{ loc.code if loc else "—" }}</p>
 
-        <hr style="border-color:var(--border); margin:1.2rem 0;">
+        <hr style="margin:1.2rem 0;border-color:var(--border);">
 
         <h4>📷 Photo</h4>
-
         {% if it.photo_path %}
-            <img src="{{ url_for('uploads', filename=it.photo_path) }}"
-                 style="max-width:100%;border-radius:8px;">
+            <img src="{{ url_for('uploads', filename=it.photo_path) }}" style="max-width:100%;">
         {% else %}
             <p class="muted">Aucune photo disponible.</p>
         {% endif %}
     </div>
 
 
-
-    <!-- ============================================================ -->
-    <!-- ===================  HISTORIQUE MOUVEMENTS ================= -->
-    <!-- ============================================================ -->
+    <!-- ===================== MOUVEMENTS ===================== -->
     <div class="card">
         <h3>📈 Historique des mouvements</h3>
 
         <div style="max-height:500px; overflow-y:auto; margin-top:.7rem;">
             <table class="table">
                 <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Action</th>
-                        <th>De</th>
-                        <th>Vers</th>
-                        <th>User</th>
-                    </tr>
+                    <tr><th>Date</th><th>Action</th><th>De</th><th>Vers</th><th>User</th></tr>
                 </thead>
-
                 <tbody>
                     {% for m in moves %}
                     <tr>
@@ -87,37 +60,26 @@
                         <td>{{ m.user or "—" }}</td>
                     </tr>
                     {% else %}
-                    <tr>
-                        <td colspan="5" class="muted">Aucun mouvement enregistré.</td>
-                    </tr>
+                    <tr><td colspan="5" class="muted">Aucun mouvement enregistré.</td></tr>
                     {% endfor %}
                 </tbody>
-
             </table>
         </div>
-
     </div>
 
 </div>
 
 
+{% if current_user.role == 'admin' %}
+<div class="card" style="margin-top:1.4rem;">
+    <h3>🛠 Actions administrateur</h3>
 
-<!-- ============================================================ -->
-<!-- ======================  SOL LIBRES (AMR) ==================== -->
-<!-- ============================================================ -->
-
-<div class="card" style="margin-top:1.6rem;">
-    <h3>🚀 Emplacements SOL libres</h3>
-
-    {% if sol_free %}
-        <ul class="compact" style="margin-top:.6rem;">
-            {% for s in sol_free %}
-                <li>{{ s.code }} — {{ s.size }}</li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p class="muted">Aucun emplacement SOL libre.</p>
-    {% endif %}
+    <form method="post" action="{{ url_for('item_delete', item_id=it.id) }}"
+          onsubmit="return confirm('Archiver cet article ?')" class="row-right" style="gap:.6rem;">
+        <button class="btn btn-warn" type="submit">Archiver l’article</button>
+    </form>
 </div>
+{% endif %}
 
 {% endblock %}
+``

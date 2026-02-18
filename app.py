@@ -556,6 +556,67 @@ def create_app():
         flash(f"Rôle utilisateur mis à jour : {role}", "ok")
         return redirect(url_for('admin_users'))
 
+# ============================================================
+# SUPPRESSION D’ITEMS (ADMIN UNIQUEMENT)
+# ============================================================
+
+    @app.route('/items/<int:item_id>/delete', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def item_delete(item_id):
+        """
+        Suppression logique: envoie l'item dans les archives (active=0).
+        Réversible : on peut plus tard prévoir une 'restauration'.
+        """
+        db = get_db()
+# Sanity check: existe et actif ?
+        row = db.execute("SELECT id, active FROM item WHERE id=?", (item_id,)).fetchone()
+        if not row:
+            flash("Item introuvable.", "error")
+            return redirect(url_for('items'))
+        if row["active"] == 0:
+            flash("Cet item est déjà archivé.", "error")
+            return redirect(url_for('items'))
+
+ # Soft delete
+        db.execute("UPDATE item SET active=0, updated_at=CURRENT_TIMESTAMP WHERE id=?", (item_id,))
+ # Journalisation , si table movement
+        try:
+            db.execute("""
+                INSERT INTO movement(item_id, from_location_id, to_location_id, action, user)
+                VALUES (?,?,?,?,?)
+            """, (item_id, None, None, "SOFT_DELETE", getattr(current_user, "username", None)))
+        except Exception:
+            pass
+        db.commit()
+
+        flash("Item archivé (suppression logique).", "ok")
+        return redirect(url_for('items'))
+
+
+    @app.route('/items/<int:item_id>/purge', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def item_purge(item_id):
+        """
+        Suppression définitive: hard delete en base (irréversible).
+        Utiliser avec parcimonie (GDPR/traçabilité...).
+        """
+        db = get_db()
+        row = db.execute("SELECT id FROM item WHERE id=?", (item_id,)).fetchone()
+        if not row:
+            flash("Item introuvable.", "error")
+            return redirect(url_for('items'))
+
+# supprimer ses mouvements associés si contrainte FK
+# db.execute("DELETE FROM movement WHERE item_id=?", (item_id,))
+
+        db.execute("DELETE FROM item WHERE id=?", (item_id,))
+        db.commit()
+
+        flash("Item supprimé définitivement (purge).", "ok")
+        return redirect(url_for('items'))
+
     #---------------------Manager------------------------
     @app.route("/manager/dashboard")
     @login_required

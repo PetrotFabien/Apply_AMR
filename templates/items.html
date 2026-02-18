@@ -10,9 +10,7 @@
     <form method="get" class="row" style="gap:.6rem;align-items:flex-end;">
         <div style="flex:1;min-width:260px;">
             <label class="muted" style="display:block;margin-bottom:.25rem;">Recherche</label>
-            <input name="q"
-                   type="text"
-                   placeholder="SKU / Description / Avis / Commande / BL"
+            <input name="q" type="text" placeholder="SKU / Description / Avis / Commande / BL"
                    value="{{ q or '' }}">
         </div>
 
@@ -30,22 +28,19 @@
     <h3>🧾 Réception — Créer un article</h3>
 
     <form method="post" class="row" onsubmit="disableOnSubmit(this)" style="gap:1rem;flex-wrap:wrap;">
-
         <div style="flex:1;min-width:260px;">
-            <label class="muted" style="display:block;margin-bottom:.25rem;">SKU</label>
+            <label class="muted">SKU</label>
             <input name="sku" placeholder="SKU (auto si vide)">
-            <div class="muted" style="font-size:.85rem;margin-top:.25rem;">
-                Laisse vide pour auto‑incrément
-            </div>
+            <div class="muted" style="font-size:.85rem;margin-top:.25rem;">Laisse vide pour auto-incrément</div>
         </div>
 
         <div style="flex:2;min-width:320px;">
-            <label class="muted" style="display:block;margin-bottom:.25rem;">Description</label>
+            <label class="muted">Description</label>
             <input name="description" placeholder="Description (facultatif)">
         </div>
 
         <div style="min-width:180px;">
-            <label class="muted" style="display:block;margin-bottom:.25rem;">Taille</label>
+            <label class="muted">Taille</label>
             <select name="size">
                 <option value="PETIT" selected>PETIT</option>
                 <option value="GRAND">GRAND</option>
@@ -59,24 +54,14 @@
         </div>
 
         <div class="row" style="width:100%;gap:1rem;flex-wrap:wrap;">
-            <div style="min-width:180px;">
-                <label class="muted" style="display:block;margin-bottom:.25rem;">Avis</label>
-                <input name="avis_no" placeholder="N° avis">
-            </div>
-            <div style="min-width:180px;">
-                <label class="muted" style="display:block;margin-bottom:.25rem;">Commande</label>
-                <input name="order_no" placeholder="N° commande">
-            </div>
-            <div style="min-width:180px;">
-                <label class="muted" style="display:block;margin-bottom:.25rem;">BL</label>
-                <input name="bl_no" placeholder="N° BL">
-            </div>
+            <div style="min-width:180px;"><label class="muted">Avis</label><input name="avis_no"></div>
+            <div style="min-width:180px;"><label class="muted">Commande</label><input name="order_no"></div>
+            <div style="min-width:180px;"><label class="muted">BL</label><input name="bl_no"></div>
         </div>
 
         <div class="row-right" style="width:100%;margin-top:.6rem;">
             <button class="btn btn-primary" type="submit">Créer</button>
         </div>
-
     </form>
 </div>
 
@@ -86,49 +71,48 @@
     <h3>Liste des articles (actifs)</h3>
 
     <div style="overflow:auto;margin-top:.8rem;">
-
         <table class="table">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>SKU</th>
-                    <th>Taille</th>
-                    <th>Description</th>
-                    <th>StRepair</th>
-                    <th>RepairSNPA</th>
-                    <th>Statut</th>
-                    <th>Empl.</th>
-                    <th style="white-space:nowrap;">Actions</th>
+                    <th>ID</th><th>SKU</th><th>Taille</th><th>Description</th>
+                    <th>StRepair</th><th>RepairSNPA</th><th>Statut</th>
+                    <th>Empl.</th><th style="white-space:nowrap;">Actions</th>
                 </tr>
             </thead>
 
             <tbody>
+
                 {% for it in items %}
                 <tr>
-                    <td>{{ it['id'] }}</td>
-                    <td><strong>{{ it['sku'] }}</strong></td>
-                    <td>{{ it['size'] or '—' }}</td>
-                    <td>{{ it['description'] or '' }}</td>
-                    <td>{{ '1' if it['st_repair'] else '0' }}</td>
-                    <td>{{ '1' if it['repair_snpa'] else '0' }}</td>
-                    <td>{{ it['status'] }}</td>
-                    <td>{{ it['loc_code'] or '—' }}</td>
+                    <td>{{ it.id }}</td>
+                    <td><strong>{{ it.sku }}</strong></td>
+                    <td>{{ it.size or '—' }}</td>
+                    <td>{{ it.description or '' }}</td>
+                    <td>{{ '1' if it.st_repair else '0' }}</td>
+                    <td>{{ '1' if it.repair_snpa else '0' }}</td>
+                    <td>{{ it.status }}</td>
+                    <td>{{ it.loc_code or '—' }}</td>
 
-                    <td>
-                        <a class="btn" href="{{ url_for('item_detail', item_id=it['id']) }}">
-                            Détails
-                        </a>
+                    <td style="white-space:nowrap;">
+                        <!-- Détails -->
+                        <a class="btn" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
+
+                        {% if current_user.role == 'admin' %}
+                        <!-- Archiver (soft delete only) -->
+                        <form method="post" action="{{ url_for('item_delete', item_id=it.id) }}"
+                              style="display:inline;" onsubmit="return confirm('Archiver cet article ?')">
+                            <button class="btn btn-warn" type="submit">Archiver</button>
+                        </form>
+                        {% endif %}
                     </td>
                 </tr>
+
                 {% else %}
-                <tr>
-                    <td colspan="9" class="muted">Aucun résultat.</td>
-                </tr>
+                <tr><td colspan="9" class="muted">Aucun résultat.</td></tr>
                 {% endfor %}
+
             </tbody>
-
         </table>
-
     </div>
 </div>
 
