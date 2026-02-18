@@ -554,22 +554,6 @@ def create_app():
         flash(f"Rôle utilisateur mis à jour : {role}", "ok")
         return redirect(url_for('admin_users'))
 
-    @app.route('/admin/users/role/<int:uid>', methods=['POST'])
-    @login_required
-    @role_required('admin')
-    def admin_users_role(uid):
-        role = (request.form.get("role") or "").strip()
-        if role not in ROLES:
-            flash("Rôle invalide.", "error")
-            return redirect(url_for('admin_users'))
-
-        db = get_db()
-        db.execute("UPDATE user SET role=? WHERE id=?", (role, uid))
-        db.commit()
-
-        flash(f"Rôle utilisateur mis à jour : {role}", "ok")
-        return redirect(url_for('admin_users'))
-
     # -------------------- WORKFLOWS --------------------
     # DOUANE
     @app.route('/work/douane')

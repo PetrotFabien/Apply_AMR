@@ -1,62 +1,92 @@
 {% extends "base.html" %}
-{% block title %}📁 Archives – Raspi Stock{% endblock %}
+{% block title %}📁 Archives – Thème B{% endblock %}
 
 {% block content %}
 
 <h2 style="margin-bottom:1rem;">📁 Archives – Articles supprimés</h2>
 
-<div class="card">
-  <form method="get" class="row" style="gap:1rem;">
-    <div>
-      <label class="muted" style="display:block;margin-bottom:.25rem;">Recherche</label>
-      <input name="q" value="{{ q or '' }}" placeholder="SKU ou description">
-    </div>
-    <button class="btn" style="margin-top:1.3rem;">Filtrer</button>
+<p class="muted" style="margin-bottom:1.4rem;">
+    Les articles archivés sont des items supprimés logiquement (active = 0).  
+    Vous pouvez filtrer ou exporter la liste.
+</p>
 
-    {{ url_for(
-      <button class="btn btn-purple" type="submit">Exporter CSV</button>
+<!-- ====================================================================== -->
+<!-- ======================= FILTRES & EXPORT ============================= -->
+<!-- ====================================================================== -->
+
+<div class="card">
+    <h3>Filtres</h3>
+
+    <form method="get" class="row" style="gap:1rem;align-items:center;">
+
+        <div>
+            <label class="muted" style="display:block;margin-bottom:.25rem;">Recherche</label>
+            <input name="q"
+                   value="{{ q or '' }}"
+                   placeholder="SKU ou description">
+        </div>
+
+        <button class="btn btn-primary" type="submit" style="margin-top:1.3rem;">
+            Filtrer
+        </button>
+
     </form>
-  </form>
+
+    <!-- Bouton export CSV -->
+    <div style="margin-top:1rem;">
+        <a class="btn btn-purple" href="{{ url_for('archives') }}">
+            Exporter CSV
+        </a>
+    </div>
 </div>
 
-<div class="card" style="margin-top:1rem;">
-  <h3>Articles archivés</h3>
 
-  <table class="table" style="margin-top:.8rem;">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>SKU</th>
-        <th>Description</th>
-        <th>Statut</th>
-        <th>Dernière update</th>
-        <th>Avis</th>
-        <th>Cmd</th>
-        <th>BL</th>
-        <th>Empl.</th>
-      </tr>
-    </thead>
+<!-- ====================================================================== -->
+<!-- =========================== LISTE ARCHIVES =========================== -->
+<!-- ====================================================================== -->
 
-    <tbody>
-      {% for it in items %}
-      <tr>
-        <td>{{ it['id'] }}</td>
-        <td><strong>{{ it['sku'] }}</strong></td>
-        <td>{{ it['description'] or '—' }}</td>
-        <td>{{ it['status'] }}</td>
-        <td>{{ it['updated_at'] }}</td>
-        <td>{{ it['avis_no'] or '—' }}</td>
-        <td>{{ it['order_no'] or '—' }}</td>
-        <td>{{ it['bl_no'] or '—' }}</td>
-        <td>{{ it['loc_code'] or '—' }}</td>
-      </tr>
-      {% else %}
-      <tr>
-        <td colspan="9" class="muted">Aucune archive.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="card" style="margin-top:1.4rem;">
+    <h3>Articles archivés</h3>
+
+    <div style="overflow:auto; margin-top:1rem;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>SKU</th>
+                    <th>Description</th>
+                    <th>Statut</th>
+                    <th>Dernière update</th>
+                    <th>Avis</th>
+                    <th>Cmd</th>
+                    <th>BL</th>
+                    <th>Empl.</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for it in items %}
+                <tr>
+                    <td>{{ it.id }}</td>
+                    <td><strong>{{ it.sku }}</strong></td>
+                    <td>{{ it.description or '—' }}</td>
+                    <td>{{ it.status }}</td>
+                    <td>{{ it.updated_at }}</td>
+                    <td>{{ it.avis_no or '—' }}</td>
+                    <td>{{ it.order_no or '—' }}</td>
+                    <td>{{ it.bl_no or '—' }}</td>
+                    <td>{{ it.loc_code or '—' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" class="muted">Aucune archive trouvée.</td>
+                </tr>
+                {% endfor %}
+
+            </tbody>
+        </table>
+    </div>
 </div>
 
 {% endblock %}

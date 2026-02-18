@@ -1,93 +1,112 @@
 {% extends "base.html" %}
-{% block title %}🔍 Inspection – Raspi Stock{% endblock %}
+{% from "_modal.html" import modal %}
+{% block title %}🔍 Inspection – Thème B{% endblock %}
 
 {% block content %}
 
 <h2 style="margin-bottom:1rem;">🔍 Inspection</h2>
 
 <p class="muted" style="margin-bottom:1.4rem;">
-  Articles en <strong>Attente inspection</strong>.  
-  “Inspection OK” ouvre un choix : <strong>Pool</strong> (suppression logique) ou <strong>Attente emballage</strong>.
+    Articles en <strong>Attente inspection</strong>.<br>
+    ✔ <strong>OK</strong> → choix <strong>Pool</strong> ou <strong>Emballage</strong><br>
+    ✖ <strong>NOK</strong> → <strong>Prison</strong>
 </p>
 
 <div class="cards">
-  {% for it in items %}
-  <div class="card">
 
-    <div class="row" style="justify-content:space-between;">
-      <h3 style="margin:0;">SKU {{ it['sku'] }}</h3>
-      <span class="badge">Attente inspection</span>
+    {% for it in items %}
+    <div class="card">
+
+        <!-- HEADER -->
+        <div class="row" style="justify-content:space-between; align-items:center;">
+            <h3 style="margin:0;">SKU {{ it['sku'] }}</h3>
+            <span class="badge">Attente inspection</span>
+        </div>
+
+        <!-- INFO -->
+        <p class="muted" style="margin:.6rem 0;">
+            <span class="badge">Taille : {{ it['size'] or '—' }}</span>
+            <span class="badge">Empl : {{ it['loc_code'] or '—' }}</span>
+        </p>
+
+        <!-- ACTIONS -->
+        <div class="row-right" style="gap:.6rem; margin-top:.8rem;">
+
+            <!-- OK -->
+            <form method="post" action="{{ url_for('inspection_ok', item_id=it['id']) }}" onsubmit="disableOnSubmit(this)">
+                <button class="btn btn-ok" type="submit">✔ OK</button>
+            </form>
+
+            <!-- NOK -->
+            <form method="post" action="{{ url_for('inspection_nok', item_id=it['id']) }}" onsubmit="disableOnSubmit(this)">
+                <button class="btn btn-danger" type="submit">✖ NOK</button>
+            </form>
+
+            <!-- Détails -->
+            <a class="btn" href="{{ url_for('item_detail', item_id=it['id']) }}">Détails</a>
+
+        </div>
+
     </div>
+    {% else %}
+        <div class="card"><em>Aucun article en attente inspection.</em></div>
+    {% endfor %}
 
-    <p class="muted" style="margin:.5rem 0;">
-      <span class="badge">Taille : {{ it['size'] or '—' }}</span>
-      <span class="badge">Empl : {{ it['loc_code'] or '—' }}</span>
-    </p>
-
-    <div class="row-right" style="gap:.6rem;margin-top:.6rem;">
-      <!-- OK (ouvre popup Pool) -->
-      {{ url_for(
-        <button class="btn btn-ok" type="submit">✔ OK</button>
-      </form>
-
-      <!-- NOK (Prison) -->
-      {{ url_for(
-        <button class="btn btn-danger" type="submit">✖ NOK</button>
-      </form>
-
-      <!-- Détails -->
-      {{ url_for(
-        Détails
-      </a>
-    </div>
-
-  </div>
-  {% else %}
-    <div class="card"><em>Aucun article en attente inspection.</em></div>
-  {% endfor %}
 </div>
 
 
-<!-- ======================== POPUP POOL ======================== -->
+{# ============================================================================
+   MODALE FULL-SCREEN (server-side injection)
+   Affichée quand : ask_pool == True ET modal_item_id != None
+============================================================================ #}
 
 {% if ask_pool and modal_item_id %}
-<div class="modal-backdrop" style="z-index:50;">
-  <div class="modal" style="max-width:550px;">
 
-    <h3>Placement en Pool</h3>
-    <p class="muted">
-      Inspection OK.<br>
-      Voulez-vous placer l’article en <strong>Pool</strong> (suppression logique) ?
-    </p>
+    {% set body %}
+        <p class="muted">
+            Inspection OK.<br>
+            Voulez‑vous placer l’article en <strong>Pool</strong>
+            (suppression logique) ?
+        </p>
 
-    <div class="row" style="margin-top:1.2rem;justify-content:flex-end;gap:.7rem;">
+        <div class="row-right" style="gap:1rem; margin-top:1.4rem;">
 
-      <!-- POOLE (YES) -->
-      {{ url_for(
-        <input type="hidden" name="item_id" value="{{ modal_item_id }}">
-        <button class="btn btn-ok" type="submit" name="choice" value="oui">
-          Oui — supprimer
-        </button>
-      </form>
+            <!-- OUI ─ supprimer -->
+            <form method="post" action="{{ url_for('inspection_pool_decision') }}" onsubmit="disableOnSubmit(this)">
+                <input type="hidden" name="item_id" value="{{ modal_item_id }}">
+                <button class="btn btn-ok"
+                        type="submit"
+                        name="choice"
+                        value="oui"
+                        data-modal-primary>
+                    Oui — supprimer
+                </button>
+            </form>
 
-      <!-- ATTENTE EMBALLAGE (NO) -->
-      {{ url_for(
-        <input type="hidden" name="item_id" value="{{ modal_item_id }}">
-        <button class="btn btn-warn" type="submit" name="choice" value="non">
-          Non — envoyer à l’emballage
-        </button>
-      </form>
+            <!-- NON ─ envoyer à emballage -->
+            <form method="post" action="{{ url_for('inspection_pool_decision') }}" onsubmit="disableOnSubmit(this)">
+                <input type="hidden" name="item_id" value="{{ modal_item_id }}">
+                <button class="btn btn-warn"
+                        type="submit"
+                        name="choice"
+                        value="non"
+                        data-modal-primary>
+                    Non — → Emballage
+                </button>
+            </form>
 
-    </div>
+        </div>
+    {% endset %}
 
-    <div class="row-right" style="margin-top:1rem;">
-      <button class="btn btn-ghost" onclick="document.querySelector('.modal-backdrop').remove()">
-        Annuler
-      </button>
-    </div>
+    {% block modal %}
+        {{ modal(
+            title="Décision Pool",
+            body_html=body,
+            footer_html="<button class='btn btn-ghost' data-modal-close>Annuler</button>"
+        ) }}
+    {% endblock %}
 
-  </div>
-</div>
 {% endif %}
 
 {% endblock %}
+``

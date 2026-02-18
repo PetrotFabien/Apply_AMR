@@ -1,111 +1,123 @@
 {% extends "base.html" %}
-{% block title %}📄 Article #{{ it['id'] }} – Raspi Stock{% endblock %}
+{% block title %}📄 Article #{{ it.id }} – Thème B{% endblock %}
 
 {% block content %}
 
 <h2 style="margin-bottom:1rem;">
-  📄 Fiche Article — <strong>{{ it['sku'] }}</strong>
+    📄 Fiche Article — <strong>{{ it.sku }}</strong>
 </h2>
 
 <div class="grid2">
 
-  <!-- ==== COLONNE GAUCHE : Infos générales ==== -->
-  <div class="card">
-    <h3>🔎 Informations générales</h3>
+    <!-- ============================================================ -->
+    <!-- ==================  CARTE INFORMATIONS  ===================== -->
+    <!-- ============================================================ -->
+    <div class="card">
 
-    <p><strong>ID :</strong> {{ it['id'] }}</p>
-    <p><strong>SKU :</strong> {{ it['sku'] }}</p>
+        <h3>🔎 Informations générales</h3>
 
-    <p><strong>Description :</strong><br>
-      {{ it['description'] or '—' }}
-    </p>
+        <p><strong>ID :</strong> {{ it.id }}</p>
+        <p><strong>SKU :</strong> {{ it.sku }}</p>
+        <p><strong>Description :</strong><br>{{ it.description or "—" }}</p>
+        <p><strong>Taille :</strong> {{ it.size or "—" }}</p>
 
-    <p><strong>Taille :</strong>
-      {{ it['size'] or '—' }}
-    </p>
+        <p><strong>StRepair :</strong>
+            {% if it.st_repair %}
+                <span class="badge">Oui</span>
+            {% else %}
+                <span class="badge">Non</span>
+            {% endif %}
+        </p>
 
-    <p><strong>StRepair :</strong>
-      {{ 'Oui' if it['st_repair'] else 'Non' }}
-    </p>
+        <p><strong>Repair SNPA :</strong>
+            {% if it.repair_snpa %}
+                <span class="badge">Oui</span>
+            {% else %}
+                <span class="badge">Non</span>
+            {% endif %}
+        </p>
 
-    <p><strong>Repair SNPA :</strong>
-      {{ 'Oui' if it['repair_snpa'] else 'Non' }}
-    </p>
+        <p><strong>Statut :</strong>
+            <span class="badge">{{ it.status }}</span>
+        </p>
 
-    <p><strong>Statut :</strong>
-      <span class="badge">{{ it['status'] }}</span>
-    </p>
+        <p><strong>Emplacement :</strong>
+            {{ loc.code if loc else "—" }}
+        </p>
 
-    <p><strong>Emplacement :</strong>
-      {{ loc['code'] if loc else '—' }}
-    </p>
+        <hr style="border-color:var(--border); margin:1.2rem 0;">
 
-    <hr style="border-color:var(--border); margin:1rem 0;">
+        <h4>📷 Photo</h4>
 
-    <h4>📷 Photo (si existante)</h4>
-    {% if it['photo_path'] %}
-      <img src="{{ url_for('uploads', filename=it['photo_path']) }}"
-           style="max-width:100%;border-radius:8px;margin-top:.5rem;">
-    {% else %}
-      <p class="muted">Aucune photo enregistrée.</p>
-    {% endif %}
-  </div>
+        {% if it.photo_path %}
+            <img src="{{ url_for('uploads', filename=it.photo_path) }}"
+                 style="max-width:100%;border-radius:8px;">
+        {% else %}
+            <p class="muted">Aucune photo disponible.</p>
+        {% endif %}
+    </div>
 
 
-  <!-- ==== COLONNE DROITE : Mouvements ==== -->
-  <div class="card">
-    <h3>📈 Historique des mouvements</h3>
 
-    <div style="max-height:450px; overflow-y:auto;">
+    <!-- ============================================================ -->
+    <!-- ===================  HISTORIQUE MOUVEMENTS ================= -->
+    <!-- ============================================================ -->
+    <div class="card">
+        <h3>📈 Historique des mouvements</h3>
 
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Action</th>
-            <th>De</th>
-            <th>Vers</th>
-            <th>User</th>
-          </tr>
-        </thead>
+        <div style="max-height:500px; overflow-y:auto; margin-top:.7rem;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Action</th>
+                        <th>De</th>
+                        <th>Vers</th>
+                        <th>User</th>
+                    </tr>
+                </thead>
 
-        <tbody>
-          {% for m in moves %}
-            <tr>
-              <td style="white-space:nowrap;">{{ m['created_at'] }}</td>
-              <td>{{ m['action'] }}</td>
-              <td>{{ m['from_code'] or '—' }}</td>
-              <td>{{ m['to_code'] or '—' }}</td>
-              <td>{{ m['user'] or '—' }}</td>
-            </tr>
-          {% else %}
-            <tr>
-              <td colspan="5" class="muted">Aucun mouvement enregistré.</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+                <tbody>
+                    {% for m in moves %}
+                    <tr>
+                        <td style="white-space:nowrap;">{{ m.created_at }}</td>
+                        <td>{{ m.action }}</td>
+                        <td>{{ m.from_code or "—" }}</td>
+                        <td>{{ m.to_code or "—" }}</td>
+                        <td>{{ m.user or "—" }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="muted">Aucun mouvement enregistré.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
 
     </div>
-  </div>
 
 </div>
 
 
 
-<!-- ==== SOL libres ==== -->
-<div class="card" style="margin-top:1.4rem;">
-  <h3>🚀 Emplacements SOL libres</h3>
+<!-- ============================================================ -->
+<!-- ======================  SOL LIBRES (AMR) ==================== -->
+<!-- ============================================================ -->
 
-  {% if sol_free %}
-    <ul class="compact">
-      {% for s in sol_free %}
-        <li>{{ s['code'] }} — {{ s['size'] }}</li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="muted">Aucun SOL libre pour le moment.</p>
-  {% endif %}
+<div class="card" style="margin-top:1.6rem;">
+    <h3>🚀 Emplacements SOL libres</h3>
+
+    {% if sol_free %}
+        <ul class="compact" style="margin-top:.6rem;">
+            {% for s in sol_free %}
+                <li>{{ s.code }} — {{ s.size }}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="muted">Aucun emplacement SOL libre.</p>
+    {% endif %}
 </div>
 
 {% endblock %}

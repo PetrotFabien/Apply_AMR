@@ -2,10 +2,10 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>{% block title %}Raspi Stock{% endblock %}</title>
+  <title>{% block title %}Raspi Stock – Thème B{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- CSS principal -->
+  <!-- CSS Thème B -->
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
   {% block head %}{% endblock %}
@@ -13,46 +13,63 @@
 
 <body>
 
-<header class="topbar">
-  <div class="logo">📦 Raspi Stock</div>
+<!-- ========== HEADER / TOPBAR ========== -->
+<header class="topbar-b">
+  <div class="logo-b">📦 RaspiStock</div>
 
-  <nav class="menu">
-    <a href="{{ url_for('index') }}" title="Dashboard">🏠</a>
-    <a href="{{ url_for('items') }}" title="Articles">📦</a>
-    <a href="{{ url_for('locations') }}" title="Emplacements">📍</a>
+  <nav class="menu-b">
+    <!-- Accès universels (selon rôle) -->
+    <a href="{{ url_for('index') }}"        title="Accueil">🏠</a>
+    <a href="{{ url_for('items') }}"        title="Articles">📦</a>
+    <a href="{{ url_for('locations') }}"    title="Emplacements">📍</a>
 
-    <span class="divider">|</span>
+    <span class="div-b">|</span>
 
-    <a href="{{ url_for('work_douane') }}" title="Douane">🛃</a>
-    <a href="{{ url_for('work_photo') }}" title="Photo">📸</a>
+    <!-- Flux opérationnel -->
+    <a href="{{ url_for('work_douane') }}"     title="Douane">🛃</a>
+    <a href="{{ url_for('work_photo') }}"      title="Photo">📸</a>
     <a href="{{ url_for('work_inspection') }}" title="Inspection">🔍</a>
-    <a href="{{ url_for('work_rac') }}" title="RAC">🧩</a>
-    <a href="{{ url_for('work_emballage') }}" title="Emballage">📦</a>
-    <a href="{{ url_for('work_expe') }}" title="Expédition">🚚</a>
+    <a href="{{ url_for('work_rac') }}"        title="RAC">🧩</a>
+    <a href="{{ url_for('work_emballage') }}"  title="Emballage">📦</a>
+    <a href="{{ url_for('work_expe') }}"       title="Expédition">🚚</a>
 
+    <!-- Archives selon RBAC -->
+    {% if current_user.is_authenticated and current_user.role in ['admin','emballage','inspection'] %}
+      <a href="{{ url_for('archives') }}" title="Archives">📁</a>
+    {% endif %}
+
+    <!-- Robot selon RBAC -->
+    {% if current_user.is_authenticated and current_user.role in ['admin','photo','inspection','emballage'] %}
+      <a href="{{ url_for('robot_status') }}" title="Robot MiR">🤖</a>
+    {% endif %}
+
+    <!-- Zone utilisateur -->
     {% if current_user.is_authenticated %}
-      <span class="user-zone">
+      <span class="user-zone-b">
         {{ current_user.display_name }}
         {% if current_user.role == 'admin' %}
           · <a href="{{ url_for('admin_users') }}" title="Administration">⚙️</a>
         {% endif %}
-        · <a href="{{ url_for('logout') }}" title="Déconnexion">🔓</a>
+        · <a href="{{ url_for('logout') }}" title="Se déconnecter">🔓</a>
       </span>
     {% else %}
-      <span class="user-zone">
-        <a href="{{ url_for('login') }}" title="Connexion">🔐</a>
+      <span class="user-zone-b">
+        <a href="{{ url_for('login') }}" title="Se connecter">🔐</a>
       </span>
     {% endif %}
   </nav>
 </header>
 
-<main class="page-content">
 
+<!-- ========== CONTENU ========== -->
+<main class="page-b">
+
+  <!-- Flashes -->
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <ul class="flashes">
+      <ul class="flash-b">
         {% for cat, msg in messages %}
-          <li class="flash {{ cat }}">{{ msg }}</li>
+          <li class="flash-msg {{ cat }}">{{ msg }}</li>
         {% endfor %}
       </ul>
     {% endif %}
@@ -61,23 +78,23 @@
   {% block content %}{% endblock %}
 </main>
 
-<footer class="footer">
-  <small>Raspi Stock • Flask + SQLite • {{ request.path }}</small>
+
+<!-- ========== FOOTER ========== -->
+<footer class="foot-b">
+  Raspi Stock — Thème B • {{ request.path }}
 </footer>
 
+
+<!-- ========== MODALE FULL‑SCREEN (overlay + conteneur) ========== -->
+<div id="modal-overlay" class="modal-overlay hidden" aria-hidden="true">
+  <div id="modal-container" class="modal-container hidden" role="dialog" aria-modal="true">
+    {% block modal %}{% endblock %}
+  </div>
+</div>
+
+<!-- JS Thème B -->
 <script src="{{ url_for('static', filename='app.js') }}"></script>
-
 {% block scripts %}{% endblock %}
-{% if current_user.is_authenticated and current_user.role in ['admin'] %}
-    <a href="{{ url_for('archives') }}">📁</a>
-{% endif %}
-
-{% if current_user.is_authenticated and current_user.role in ['admin'] %}
-  <a href="{{ url_for('robot_status') }}" title="Robot MiR">🤖</a>
-{% endif %}
-
-
-
 
 </body>
 </html>

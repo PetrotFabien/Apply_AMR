@@ -1,89 +1,99 @@
 {% extends "base.html" %}
-{% block title %}📦 Emballage – Raspi Stock{% endblock %}
+{% from "_modal.html" import modal %}
+{% block title %}📦 Emballage – Thème B{% endblock %}
 
 {% block content %}
 
 <h2 style="margin-bottom:1rem;">📦 Emballage</h2>
 
 <p class="muted" style="margin-bottom:1.4rem;">
-  Articles en <strong>Attente emballage</strong>.  
-  <br>• Si StRepair ou RepairSNPA → <strong>Expédition Client directe</strong>  
-  <br>• Sinon → choix <strong>ST</strong> ou <strong>T2</strong>
+    Articles en <strong>Attente emballage</strong>.<br>
+    Si l’article est <strong>StRepair</strong> ou <strong>RepairSNPA</strong>,
+    il part en <strong>expédition client directe</strong> après "Emballage terminé".<br>
+    Sinon → choix de la <strong>route ST</strong> ou <strong>T2</strong>.
 </p>
 
 <div class="cards">
-  {% for it in items %}
-  <div class="card">
 
-    <div class="row" style="justify-content:space-between; align-items:center;">
-      <h3 style="margin:0;">SKU {{ it['sku'] }}</h3>
-      <span class="badge">Attente emballage</span>
+    {% for it in items %}
+    <div class="card">
+
+        <div class="row" style="justify-content:space-between; align-items:center;">
+            <h3 style="margin:0;">SKU {{ it['sku'] }}</h3>
+            <span class="badge">Attente emballage</span>
+        </div>
+
+        <p class="muted" style="margin:.6rem 0;">
+            <span class="badge">Taille : {{ it['size'] }}</span>
+            <span class="badge">StRepair : {{ '1' if it['st_repair'] else '0' }}</span>
+            <span class="badge">RepairSNPA : {{ '1' if it['repair_snpa'] else '0' }}</span>
+            <span class="badge">Empl : {{ it['loc_code'] or '—' }}</span>
+        </p>
+
+        <div class="row-right" style="gap:.7rem; margin-top:.8rem;">
+
+            <!-- Emballage terminé = POST -->
+            <form method="post" action="{{ url_for('emballage_done', item_id=it['id']) }}"
+                  onsubmit="disableOnSubmit(this)">
+                <button class="btn btn-primary" type="submit">Emballage terminé</button>
+            </form>
+
+            <!-- Détails -->
+            <a class="btn" href="{{ url_for('item_detail', item_id=it['id']) }}">
+                Détails
+            </a>
+
+        </div>
+
     </div>
+    {% else %}
+        <div class="card"><em>Aucun article en attente emballage.</em></div>
+    {% endfor %}
 
-    <p class="muted" style="margin:.6rem 0;">
-      <span class="badge">Taille : {{ it['size'] }}</span>
-      <span class="badge">StRepair : {{ '1' if it['st_repair'] else '0' }}</span>
-      <span class="badge">RepairSNPA : {{ '1' if it['repair_snpa'] else '0' }}</span>
-      <span class="badge">Empl : {{ it['loc_code'] or '—' }}</span>
-    </p>
-
-    <div class="row-right" style="gap:.6rem;margin-top:.8rem;">
-      <!-- Emballage terminé -->
-      {{ url_for(
-        <button class="btn btn-primary" type="submit">Emballage terminé</button>
-      </form>
-
-      <!-- Détails -->
-      {{ url_for(
-        Détails
-      </a>
-    </div>
-
-  </div>
-  {% else %}
-    <div class="card"><em>Aucun article en attente emballage.</em></div>
-  {% endfor %}
 </div>
 
-
-<!-- ======================== POPUP CHOIX ROUTE ======================== -->
 {% if ask_route and modal_item_id %}
-<div class="modal-backdrop" style="z-index:50;">
-  <div class="modal" style="max-width:550px;">
 
-    <h3>Choix de la route d’expédition</h3>
-    <p class="muted">
-      Cet article n’est pas Repair → choisissez la destination.
-    </p>
+    {% set body %}
+        <p class="muted">
+            Cet article n'est pas Repair.<br>
+            Choisissez sa destination après emballage :
+        </p>
 
-    <div class="row" style="margin-top:1.2rem;justify-content:flex-end;gap:.7rem;">
+        <div class="row-right" style="gap:1rem; margin-top:1.4rem;">
 
-      <!-- ROUTE ST -->
-      {{ url_for(
-        <input type="hidden" name="item_id" value="{{ modal_item_id }}">
-        <button class="btn btn-purple" name="route" value="ST" type="submit">
-          Attente expédition ST
-        </button>
-      </form>
+            <!-- ROUTE ST -->
+            <form method="post" action="{{ url_for('emballage_choose_route') }}"
+                  onsubmit="disableOnSubmit(this)">
+                <input type="hidden" name="item_id" value="{{ modal_item_id }}">
+                <button class="btn btn-purple"
+                        name="route" value="ST"
+                        type="submit" data-modal-primary>
+                    Attente expédition ST
+                </button>
+            </form>
 
-      <!-- ROUTE T2 -->
-      {{ url_for(
-        <input type="hidden" name="item_id" value="{{ modal_item_id }}">
-        <button class="btn btn-warn" name="route" value="T2" type="submit">
-          Attente départ T2
-        </button>
-      </form>
+            <!-- ROUTE T2 -->
+            <form method="post" action="{{ url_for('emballage_choose_route') }}"
+                  onsubmit="disableOnSubmit(this)">
+                <input type="hidden" name="item_id" value="{{ modal_item_id }}">
+                <button class="btn btn-warn"
+                        name="route" value="T2"
+                        type="submit" data-modal-primary>
+                    Attente départ T2
+                </button>
+            </form>
 
-    </div>
+        </div>
+    {% endset %}
 
-    <div class="row-right" style="margin-top:1rem;">
-      <button class="btn btn-ghost" onclick="document.querySelector('.modal-backdrop').remove()">
-        Annuler
-      </button>
-    </div>
-
-  </div>
-</div>
+    {% block modal %}
+        {{ modal(
+            title="Choix de la route d’expédition",
+            body_html=body,
+            footer_html="<button class='btn btn-ghost' data-modal-close>Annuler</button>"
+        ) }}
+    {% endblock %}
 {% endif %}
 
 {% endblock %}

@@ -1,97 +1,82 @@
 {% extends "base.html" %}
-{% block title %}🏠 Dashboard – Raspi Stock{% endblock %}
+{% block title %}🏠 Dashboard – Thème B{% endblock %}
 
 {% block content %}
 
-<h2 style="margin-bottom:1rem;">🏠 Tableau de bord</h2>
+<h2 style="margin-bottom:1.5rem;">🏠 Tableau de bord</h2>
 
+<!-- ====================== INDICATEURS CHARIOTS ======================== -->
 <div class="cards">
 
-  <!-- CARTE SOL GRANDS -->
-  <div class="card">
-    <h3>Chariots GRAND</h3>
-    <p>
-      <strong>{{ kg['GRAND']['occupied'] }}</strong> /
-      {{ kg['GRAND']['total'] }} occupés
-    </p>
-    <p class="muted">{{ kg['GRAND']['free'] }} disponibles</p>
-  </div>
+    <div class="card">
+        <h3>Chariots GRAND</h3>
+        <p style="margin-top:.4rem;">
+            <strong>{{ kg['GRAND']['occupied'] }}</strong> / {{ kg['GRAND']['total'] }} occupés
+        </p>
+        <p class="muted">{{ kg['GRAND']['free'] }} disponibles</p>
+    </div>
 
-  <!-- CARTE SOL PETITS -->
-  <div class="card">
-    <h3>Chariots PETIT</h3>
-    <p>
-      <strong>{{ kg['PETIT']['occupied'] }}</strong> /
-      {{ kg['PETIT']['total'] }} occupés
-    </p>
-    <p class="muted">{{ kg['PETIT']['free'] }} disponibles</p>
-  </div>
+    <div class="card">
+        <h3>Chariots PETIT</h3>
+        <p style="margin-top:.4rem;">
+            <strong>{{ kg['PETIT']['occupied'] }}</strong> / {{ kg['PETIT']['total'] }} occupés
+        </p>
+        <p class="muted">{{ kg['PETIT']['free'] }} disponibles</p>
+    </div>
 
-  <!-- CARTE STATUTS -->
-  <div class="card">
-    <h3>Statuts actifs</h3>
-    {% if statuses %}
-      <ul class="compact">
-        {% for row in statuses %}
-          <li>{{ row["status"] }} : {{ row["c"] }}</li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="muted">Aucun article actif.</p>
-    {% endif %}
-  </div>
+    <div class="card">
+        <h3>Statuts actifs</h3>
+        {% if statuses %}
+            <ul class="compact" style="margin-top:.5rem;">
+                {% for row in statuses %}
+                    <li>{{ row["status"] }} : {{ row["c"] }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="muted" style="margin-top:.5rem;">Aucun article actif.</p>
+        {% endif %}
+    </div>
 
 </div>
 
 
-<!-- SECTION RAPIDE : NAVIGATION FLUX -->
+<!-- ====================== FLUX OPÉRATIONNEL ======================== -->
+
 <h2 style="margin-top:2.2rem;">⚡ Flux opérationnel</h2>
 
-<div class="cards">
+<div class="cards" style="margin-top:1rem;">
 
-  <a class="card" href="{{ url_for('work_douane') }}">
-    <h3>🛃 Zone Douane</h3>
-    <p class="muted">Articles en attente douane</p>
-  </a>
+    <a class="card" href="{{ url_for('work_douane') }}">
+        <h3>🛃 Zone Douane</h3>
+        <p class="muted">Articles en attente douane</p>
+    </a>
 
-  <a class="card" href="{{ url_for('work_photo') }}">
-    <h3>📸 Poste Photo</h3>
-    <p class="muted">Flux Photo > Étape obligatoire</p>
-  </a>
+    <a class="card" href="{{ url_for('work_photo') }}">
+        <h3>📸 Poste Photo</h3>
+        <p class="muted">Contrôle photo avant stockage</p>
+    </a>
 
-  <a class="card" href="{{ url_for('work_inspection') }}">
-    <h3>🔍 Inspection</h3>
-    <p class="muted">Contrôles + éventuel Pool</p>
-  </a>
+    <a class="card" href="{{ url_for('work_inspection') }}">
+        <h3>🔍 Inspection</h3>
+        <p class="muted">Contrôles + Pool (OK/NOK)</p>
+    </a>
 
-  <a class="card" href="{{ url_for('work_rac') }}">
-    <h3>🧩 RAC</h3>
-    <p class="muted">Validation de la commande</p>
-  </a>
+    <a class="card" href="{{ url_for('work_rac') }}">
+        <h3>🧩 RAC</h3>
+        <p class="muted">Validation RAC</p>
+    </a>
 
-  <a class="card" href="{{ url_for('work_emballage') }}">
-    <h3>📦 Emballage</h3>
-    <p class="muted">Choix ST / T2 ou direct client (Repair)</p>
-  </a>
+    <a class="card" href="{{ url_for('work_emballage') }}">
+        <h3>📦 Emballage</h3>
+        <p class="muted">Choix ST/T2 ou Client</p>
+    </a>
 
-  <a class="card" href="{{ url_for('work_expe') }}">
-    <h3>🚚 Expédition</h3>
-    <p class="muted">Fin du flux (suppression logique)</p>
-  </a>
+    <a class="card" href="{{ url_for('work_expe') }}">
+        <h3>🚚 Expédition</h3>
+        <p class="muted">Sortie du flux</p>
+    </a>
 
 </div>
-
-
-<!-- SECTION ADMIN -->
-{% if current_user.role == 'admin' %}
-<h2 style="margin-top:2.2rem;">⚙️ Administration</h2>
-
-<div class="cards">
-  <a class="card" href="{{ url_for('admin_users') }}">
-    <h3>👤 Gestion des utilisateurs</h3>
-    <p class="muted">Comptes, rôles, activation</p>
-  </a>
-</div>
-{% endif %}
 
 {% endblock %}
+``

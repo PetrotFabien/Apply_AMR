@@ -1,0 +1,73 @@
+{# =============================================================================
+  Thème B – Composant modale universelle (full‑screen, blur, slide-up)
+
+  Deux usages possibles :
+  ---------------------------------------------------------------------------
+  1) Appel via macro :
+     {% from "_modal.html" import modal %}
+     {{ modal(title="Titre", body_html=body, footer_html=footer) }}
+
+  2) Include direct :
+     {% include "_modal.html" with title="Titre" body_html=body footer_html=footer %}
+
+  Notes :
+  - Le conteneur overlay + container est déjà présent dans base.html :
+       #modal-overlay / #modal-container
+  - JS Thème B gère :
+      • openModal(html)
+      • closeModal()
+      • ESC
+      • clic extérieur
+      • data-modal-close
+      • data-modal-primary
+=============================================================================#}
+
+{% macro modal(title='', body_html='', footer_html='') %}
+ <article class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+
+   <!-- HEADER -->
+   <header class="modal-header">
+     <h3 id="modal-title">{{ title }}</h3>
+     <button class="btn btn-ghost btn-close"
+             type="button"
+             aria-label="Fermer"
+             data-modal-close>
+       ✖
+     </button>
+   </header>
+
+   <!-- CORPS -->
+   <section class="modal-body">
+     {{ body_html | safe }}
+   </section>
+
+   <!-- FOOTER -->
+   <footer class="modal-footer">
+
+     {% if footer_html %}
+       {{ footer_html | safe }}
+     {% else %}
+       <!-- Footer par défaut -->
+       <button class="btn btn-ghost" type="button" data-modal-close>
+         Fermer
+       </button>
+     {% endif %}
+     
+   </footer>
+ </article>
+{% endmacro %}
+
+
+
+{# ---------------------------------------------------------------------------
+  Mode include direct :
+  Si title/body_html/footer_html sont fournis, on rend une instance unique.
+--------------------------------------------------------------------------- #}
+
+{% if title is defined or body_html is defined or footer_html is defined %}
+ {{ modal(
+     title     = title      | default(''),
+     body_html = body_html  | default(''),
+     footer_html = footer_html | default('')
+ ) }}
+{% endif %}

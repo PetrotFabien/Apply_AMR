@@ -1,39 +1,57 @@
-/* ==========================================================
-   Raspi Stock — Thème Modernisé (Bleu Nuit)
-   ========================================================== */
+/* ============================================================================
+   THÈME B — STYLE ULTRA‑MODERNISÉ
+   Full‑screen modals • Blur • Animations • Layout Premium
+   Couleurs bleu‑nuit / cyan / violet
+============================================================================ */
 
-   :root {
-    --bg: #0b1220;
-    --card: #0f1a2f;
+
+/* ========== PALETTE & VARIABLES ========== */
+:root {
+    --bg: #0a0f1a;
+    --bg-light: rgba(255,255,255,0.04);
+    --bg-card: rgba(255,255,255,0.06);
+    --bg-blur: rgba(10,15,26,0.55);
+
     --text: #f1f5f9;
-    --muted: #94a3b8;
-    --border: #20304f;
+    --muted: #9ca3af;
+    --border: rgba(255,255,255,0.08);
 
-    --accent: #3b82f6;    /* bleu vif */
-    --ok: #22c55e;        /* vert */
-    --warn: #f59e0b;      /* orange */
-    --danger: #ef4444;    /* rouge */
-    --purple: #7c3aed;
+    --accent: #38bdf8;      /* cyan */
+    --accent-dark: #0ea5e9;
 
-    --shadow: rgba(0,0,0,.30);
+    --ok: #22c55e;
+    --ok-dark: #15803d;
+
+    --warn: #f59e0b;
+    --warn-dark: #b45309;
+
+    --danger: #ef4444;
+    --danger-dark: #b91c1c;
+
+    --purple: #8b5cf6;
+    --purple-dark: #6d28d9;
+
+    --radius: 16px;
+    --radius-card: 18px;
+
+    --shadow-sm: 0 4px 10px rgba(0,0,0,0.25);
+    --shadow-lg: 0 14px 32px rgba(0,0,0,0.35);
+
+    --blur: 16px;
 }
 
 
-/* ==========================================================
-   BASE & TYPO
-   ========================================================== */
-
-body {
+/* ========== BASE ========== */
+html, body {
     margin: 0;
+    padding: 0;
     background: var(--bg);
-    color: var(--text);
     font-family: system-ui, Segoe UI, Roboto, sans-serif;
+    color: var(--text);
+    overflow-x: hidden;
 }
 
-h1,h2,h3,h4 {
-    margin: 0;
-    color: var(--text);
-}
+h1, h2, h3, h4, h5 { margin: 0; }
 
 a {
     color: var(--accent);
@@ -43,103 +61,82 @@ a:hover { text-decoration: underline; }
 
 .muted { color: var(--muted); }
 
-input, select, button {
-    font-size: 1rem;
-}
 
-/* Inputs modernisés */
-input, select, textarea {
-    padding: .45rem .6rem;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: #0f172a;
-    color: var(--text);
-    width: 100%;
-}
-
-
-/* ==========================================================
-   TOPBAR / NAVIGATION
-   ========================================================== */
-
-.topbar {
-    background: #121a2d;
+/* ========== TOPBAR (Thème B) ========== */
+.topbar-b {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(var(--blur));
+    background: rgba(10,15,26,0.65);
+    border-bottom: 1px solid var(--border);
     padding: .8rem 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--border);
-    box-shadow: 0 4px 12px var(--shadow);
 }
 
-.logo {
-    font-size: 1.25rem;
+.logo-b {
+    font-size: 1.35rem;
     font-weight: 600;
-    user-select: none;
+    letter-spacing: 0.5px;
 }
 
-.menu a {
-    margin-right: .8rem;
+.menu-b a {
+    margin-right: 0.8rem;
+    padding: 0.3rem 0.45rem;
+    border-radius: 8px;
     color: var(--text);
 }
-.menu a:hover {
-    color: var(--accent);
+.menu-b a:hover {
+    background: var(--bg-light);
 }
 
-.divider {
-    margin: 0 .6rem;
-    color: var(--muted);
-}
-
-.user-zone {
+.user-zone-b {
     margin-left: 1rem;
     color: var(--muted);
 }
 
-
-/* ==========================================================
-   PAGE LAYOUT
-   ========================================================== */
-
-.page-content {
-    max-width: 1100px;
-    margin: 1.4rem auto;
-    padding: 0 1rem;
+.div-b {
+    color: var(--muted);
+    margin: 0 .5rem;
 }
 
 
-/* ==========================================================
-   CARDS
-   ========================================================== */
+/* ========== PAGE LAYOUT ========== */
+.page-b {
+    max-width: 1250px;
+    margin: 1.8rem auto;
+    padding: 0 1.2rem;
+}
 
+
+/* ========== CARDS ========== */
 .card {
-    background: var(--card);
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1rem;
-    margin: .8rem 0;
-    box-shadow: 0 6px 20px var(--shadow);
+    border-radius: var(--radius-card);
+    padding: 1.2rem;
+    margin-bottom: 1.2rem;
+    box-shadow: var(--shadow-sm);
 }
 
 .cards {
     display: grid;
-    gap: 1rem;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.2rem;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 
-/* ==========================================================
-   BUTTONS
-   ========================================================== */
-
-.btn, button {
-    border-radius: 999px;
-    padding: .55rem 1rem;
+/* ========== BUTTONS (Premium) ========== */
+.btn,
+button {
     cursor: pointer;
-    border: 1px solid var(--border);
-    background: #1e293b;
-    color: var(--text);
-    transition: 0.15s;
+    font-size: 1rem;
+    padding: 0.65rem 1.2rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    transition: 0.15s ease;
 }
 
 .btn:hover { opacity: .85; }
@@ -147,51 +144,55 @@ input, select, textarea {
 
 .btn-primary {
     background: var(--accent);
-    border-color: #1d4ed8;
-    color: #fff;
+    border-color: var(--accent-dark);
+    color: #021016;
 }
+
 .btn-ok {
     background: var(--ok);
-    border-color: #15803d;
-    color: #052e16;
+    border-color: var(--ok-dark);
+    color: #021006;
 }
+
 .btn-warn {
     background: var(--warn);
-    border-color: #b45309;
-    color: #0a0a0a;
+    border-color: var(--warn-dark);
+    color: #1a1000;
 }
+
 .btn-danger {
     background: var(--danger);
-    border-color: #991b1b;
-    color: #fff;
+    border-color: var(--danger-dark);
+    color: white;
 }
+
 .btn-purple {
     background: var(--purple);
-    border-color: #5b21b6;
-    color: #fff;
+    border-color: var(--purple-dark);
+    color: white;
 }
+
 .btn-ghost {
     background: transparent;
     border: 1px dashed var(--border);
     color: var(--muted);
 }
 
+.btn-close {
+    font-size: 1.25rem;
+    padding: .4rem .6rem;
+}
 
-/* ==========================================================
-   TABLES
-   ========================================================== */
 
+/* ========== TABLES ========== */
 .table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: .5rem;
 }
 
-.table th,
-.table td {
-    padding: .6rem .4rem;
+.table th, .table td {
+    padding: .65rem .5rem;
     border-bottom: 1px solid var(--border);
-    text-align: left;
 }
 
 .table th {
@@ -200,118 +201,154 @@ input, select, textarea {
 }
 
 
-/* ==========================================================
-   BADGES
-   ========================================================== */
-
+/* ========== BADGES ========== */
 .badge {
     display: inline-block;
-    padding: .25rem .6rem;
+    background: rgba(255,255,255,0.05);
+    padding: .3rem .65rem;
     border-radius: 999px;
-    font-size: .85rem;
-    margin-right: .4rem;
-    background: var(--card);
     border: 1px solid var(--border);
-    color: var(--text);
+    font-size: .85rem;
 }
 
 
-/* ==========================================================
-   FLASH MESSAGES
-   ========================================================== */
-
-.flashes {
+/* ========== FLASHES ========== */
+.flash-b {
     list-style: none;
     padding-left: 0;
-    margin-bottom: 1rem;
 }
 
-.flash {
-    padding: .7rem 1rem;
-    border-radius: 8px;
-    margin-bottom: .5rem;
+.flash-msg {
+    padding: .8rem 1.2rem;
+    border-radius: var(--radius);
+    margin-bottom: .6rem;
+    box-shadow: var(--shadow-sm);
 }
-.flash.ok {
-    background: rgba(34,197,94,.25);
+
+.flash-msg.ok {
+    background: rgba(34,197,94,.20);
     color: var(--ok);
 }
-.flash.error {
-    background: rgba(239,68,68,.25);
+
+.flash-msg.error {
+    background: rgba(239,68,68,.20);
     color: var(--danger);
 }
 
 
-/* ==========================================================
-   GRID HELPERS
-   ========================================================== */
-
+/* ========== GRID / ROW HELPERS ========== */
 .row {
     display: flex;
-    gap: .6rem;
+    gap: 0.75rem;
     flex-wrap: wrap;
 }
 
 .row-right {
     display: flex;
-    flex-wrap: wrap;
-    gap: .6rem;
     justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
 }
 
 .grid2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    gap: 1.2rem;
 }
-@media (max-width: 800px) {
-    .grid2 {
-        grid-template-columns: 1fr;
-    }
+@media (max-width: 900px) {
+    .grid2 { grid-template-columns: 1fr; }
 }
 
 
-/* ==========================================================
-   MODAL (version simple pour Thème A)
-   ========================================================== */
+/* ============================================================================
+   MODALES FULL‑SCREEN (Thème B)
+============================================================================ */
 
-.modal-backdrop {
+/* Overlay full screen : blur + fade-in */
+.modal-overlay {
     position: fixed;
     inset: 0;
-    z-index: 50;
-    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(var(--blur));
+    background: rgba(10,15,26,0.55);
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: flex-end;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease;
 }
 
-.modal {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 1.2rem;
+.modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Container (gestion slide-up) */
+.modal-container {
+    width: 100%;
     max-width: 600px;
-    width: 95%;
-    box-shadow: 0 10px 30px var(--shadow);
+    margin-bottom: 1.5rem;
+    transform: translateY(40px);
+    opacity: 0;
+    transition: .28s ease;
 }
 
-.modal h3 {
-    margin-top: 0;
+.modal-container.active {
+    transform: translateY(0);
+    opacity: 1;
 }
 
-.modal button[disabled] {
-    opacity: .6;
-    cursor: not-allowed;
+/* La feuille interne de la modale */
+.modal-sheet {
+    background: var(--bg);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    padding: 1.2rem;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+/* HEADER */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: .8rem;
+}
+
+.modal-header h3 {
+    font-size: 1.3rem;
+}
+
+/* BODY */
+.modal-body {
+    padding: .5rem 0 1rem 0;
+}
+
+/* FOOTER */
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: .6rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
 }
 
 
-/* ==========================================================
+/* Hidden (pré‑render) */
+.hidden {
+    display: none !important;
+}
+
+
+/* ============================================================================
    FOOTER
-   ========================================================== */
-
-.footer {
-    padding: 1rem;
+============================================================================ */
+.foot-b {
     text-align: center;
+    padding: 2rem 0;
+    font-size: 0.85rem;
     color: var(--muted);
-    font-size: .85rem;
-    margin-top: 2rem;
 }
