@@ -503,7 +503,7 @@ def create_app():
     # DOUANE
     @app.route('/work/douane')
     @login_required
-    @role_required('douane')
+    @role_required('douane' , 'admin')
     def work_douane():
         rows=get_db().execute("""
             SELECT i.*, l.code AS loc_code
@@ -515,7 +515,7 @@ def create_app():
 
     @app.route('/items/<int:item_id>/douane_out', methods=['POST'])
     @login_required
-    @role_required('douane')
+    @role_required('douane' , 'admin')
     def douane_out(item_id):
         db=get_db(); it=item_by_id(item_id)
         if not it: abort(404)
@@ -531,7 +531,7 @@ def create_app():
     # PHOTO
     @app.route('/work/photo')
     @login_required
-    @role_required('photo')
+    @role_required('photo', 'admin')
     def work_photo():
         rows=get_db().execute("""
             SELECT i.*, l.code AS loc_code
@@ -545,7 +545,7 @@ def create_app():
 
     @app.route('/work/photo/<int:item_id>/ok', methods=['POST'])
     @login_required
-    @role_required('photo')
+    @role_required('photo' , 'admin')
     def photo_ok(item_id):
         it=item_by_id(item_id); _ensure_active(it)
         if it['status']!='Attente photo':
@@ -554,7 +554,7 @@ def create_app():
 
     @app.route('/work/photo/place_shelf', methods=['POST'])
     @login_required
-    @role_required('photo')
+    @role_required('photo' , 'admin')
     def photo_place_shelf():
         item_id=int(request.form.get('item_id')); level=int(request.form.get('level')); plate=(request.form.get('plate') or 'A').upper()
         it=item_by_id(item_id); _ensure_active(it)
@@ -568,7 +568,7 @@ def create_app():
 
     @app.route('/work/photo/place_amr', methods=['POST'])
     @login_required
-    @role_required('photo')
+    @role_required('photo' , 'admin')
     def photo_place_amr():
         item_id=int(request.form.get('item_id')); size=(request.form.get('amr_size') or 'PETIT').upper()
         it=item_by_id(item_id); _ensure_active(it)
@@ -583,7 +583,7 @@ def create_app():
     # INSPECTION
     @app.route('/work/inspection')
     @login_required
-    @role_required('inspection')
+    @role_required('inspection' , 'admin')
     def work_inspection():
         rows=get_db().execute("""
             SELECT i.*, l.code AS loc_code
@@ -596,7 +596,7 @@ def create_app():
 
     @app.route('/work/inspection/<int:item_id>/nok', methods=['POST'])
     @login_required
-    @role_required('inspection')
+    @role_required('inspection' , 'admin')
     def inspection_nok(item_id):
         it=item_by_id(item_id); _ensure_active(it)
         if it['status']!='Attente inspection': flash('Statut invalide','error'); return redirect(url_for('work_inspection'))
@@ -605,7 +605,7 @@ def create_app():
 
     @app.route('/work/inspection/<int:item_id>/ok', methods=['POST'])
     @login_required
-    @role_required('inspection')
+    @role_required('inspection' , 'admin')
     def inspection_ok(item_id):
         it=item_by_id(item_id); _ensure_active(it)
         if it['status']!='Attente inspection': flash('Statut invalide','error'); return redirect(url_for('work_inspection'))
@@ -613,7 +613,7 @@ def create_app():
 
     @app.route('/work/inspection/pool', methods=['POST'])
     @login_required
-    @role_required('inspection')
+    @role_required('inspection' , 'admin')
     def inspection_pool_decision():
         item_id=int(request.form.get('item_id')); choice=(request.form.get('choice') or 'non').lower()
         it=item_by_id(item_id); _ensure_active(it)
@@ -628,7 +628,7 @@ def create_app():
     # RAC
     @app.route('/work/rac')
     @login_required
-    @role_required('rac')
+    @role_required('rac' , 'admin')
     def work_rac():
         rows=get_db().execute("""
             SELECT i.*, l.code AS loc_code
@@ -640,7 +640,7 @@ def create_app():
 
     @app.route('/work/rac/<int:item_id>/ok', methods=['POST'])
     @login_required
-    @role_required('rac')
+    @role_required('rac', 'admin')
     def rac_ok(item_id):
         it=item_by_id(item_id); _ensure_active(it)
         if it['status']!='Attente RAC': flash('Statut invalide','error'); return redirect(url_for('work_rac'))
@@ -649,7 +649,7 @@ def create_app():
 
     @app.route('/work/rac/<int:item_id>/nok', methods=['POST'])
     @login_required
-    @role_required('rac')
+    @role_required('rac', 'admin')
     def rac_nok(item_id):
         it=item_by_id(item_id); _ensure_active(it)
         if it['status']!='Attente RAC': flash('Statut invalide','error'); return redirect(url_for('work_rac'))
@@ -659,7 +659,7 @@ def create_app():
     # EMBALLAGE
     @app.route('/work/emballage')
     @login_required
-    @role_required('emballage')
+    @role_required('emballage', 'admin')
     def work_emballage():
         rows=get_db().execute("""
             SELECT i.*, l.code AS loc_code
@@ -672,7 +672,7 @@ def create_app():
 
     @app.route('/work/emballage/<int:item_id>/done', methods=['POST'])
     @login_required
-    @role_required('emballage')
+    @role_required('emballage' , 'admin')
     def emballage_done(item_id):
         it=item_by_id(item_id); _ensure_active(it)
         if it['status']!='Attente emballage': flash('Statut invalide','error'); return redirect(url_for('work_emballage'))
@@ -683,7 +683,7 @@ def create_app():
 
     @app.route('/work/emballage/route', methods=['POST'])
     @login_required
-    @role_required('emballage')
+    @role_required('emballage','admin')
     def emballage_choose_route():
         item_id=int(request.form.get('item_id')); route=(request.form.get('route') or 'ST').upper()
         it=item_by_id(item_id); _ensure_active(it)
@@ -695,7 +695,7 @@ def create_app():
     # EXPÉDITION
     @app.route('/work/expe')
     @login_required
-    @role_required('emballage')
+    @role_required('emballage','admin')
     def work_expe():
         db=get_db()
         client=db.execute("""
@@ -714,7 +714,7 @@ def create_app():
 
     @app.route('/work/expe/<int:item_id>/ship', methods=['POST'])
     @login_required
-    @role_required('emballage')
+    @role_required('emballage', 'admin')
     def expe_ship(item_id):
         kind=(request.form.get('kind') or 'client')
         it=item_by_id(item_id); _ensure_active(it)
