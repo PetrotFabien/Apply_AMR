@@ -11,6 +11,7 @@ from processus import Item, Location, can_move, choose_slot
 # --- ROLES ACCEPTÉS DANS LE SYSTÈME ----------------------------------
 ROLES = [
     "admin",
+    "manager",
     "douane",
     "photo",
     "inspection",
@@ -24,6 +25,7 @@ ROLES = [
 ROLE_PERMISSIONS = {
     "index": ROLES,  # tout le monde
     "items": ["admin", "user"],
+    "manager_dashboard": ["admin", "manager"],
 
     # Flux principal
     "work_douane": ["admin", "douane"],
@@ -553,6 +555,70 @@ def create_app():
 
         flash(f"Rôle utilisateur mis à jour : {role}", "ok")
         return redirect(url_for('admin_users'))
+
+    #---------------------Manager------------------------
+    @app.route("/manager/dashboard")
+    @login_required
+    @role_required("admin", "manager")
+    def manager_dashboard():
+        db = get_db()
+
+        encours = {}
+
+        encours['attente_douane'] = db.execute("""
+                SELECT * FROM item
+                WHERE status = 'ATTENTE_DOUANE' AND active = 1
+                ORDER BY created_at ASC
+        """).fetchall()
+
+        encours['attente_photo'] = db.execute("""
+                SELECT * FROM item
+                WHERE status = 'ATTENTE_PHOTO' AND active = 1
+                ORDER BY created_at ASC
+        """).fetchall()
+
+        encours['attente_inspection'] = db.execute("""
+                SELECT * FROM item
+                WHERE status = 'ATTENTE_INSPECTION' AND active = 1
+                ORDER BY created_at ASC
+        """).fetchall()
+
+        encours['attente_rac'] = db.execute("""
+                SELECT * FROM item
+                WHERE status = 'ATTENTE_RAC' AND active = 1
+                ORDER BY created_at ASC
+        """).fetchall()
+
+        encours['attente_emballage'] = db.execute("""
+                SELECT * FROM item
+                WHERE status = 'ATTENTE_EMBALLAGE' AND active = 1
+                ORDER BY created_at ASC
+        """).fetchall()
+
+        encours['attente_client'] = db.execute("""
+                SELECT * FROM item
+                WHERE status = 'ATTENTE_EXPE_CLIENT' AND active = 1
+                ORDER BY created_at ASC
+        """).fetchall()
+
+        encours['attente_st'] = db.execute("""
+                SELECT * FROM item
+                WHERE status = 'ATTENTE_EXPE_ST' AND active = 1
+                ORDER BY created_at ASC
+        """).fetchall()
+
+        encours['attente_t2'] = db.execute("""
+                SELECT * FROM item
+                WHERE status = 'ATTENTE_EXPE_T2' AND active = 1
+                ORDER BY created_at ASC
+        """).fetchall()
+        encours['nogo'] = db.execute("""
+                SELECT * FROM item
+                WHERE status = 'NOGO' AND active = 1
+                ORDER BY updated_at DESC
+        """).fetchall()
+
+        return render_template("manager_dashboard.html", encours=encours)
 
     # -------------------- WORKFLOWS --------------------
     # DOUANE

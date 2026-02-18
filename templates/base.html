@@ -18,29 +18,34 @@
   <div class="logo-b">📦 RaspiStock</div>
 
   <nav class="menu-b">
-    <!-- Accès universels (selon rôle) -->
-    <a href="{{ url_for('index') }}"        title="Accueil">🏠</a>
-    <a href="{{ url_for('items') }}"        title="Articles">📦</a>
-    <a href="{{ url_for('locations') }}"    title="Emplacements">📍</a>
+    <!-- Accès universels -->
+    <a href="{{ url_for('index') }}" title="Accueil">🏠</a>
+    <a href="{{ url_for('items') }}" title="Articles">📦</a>
+    <a href="{{ url_for('locations') }}" title="Emplacements">📍</a>
 
     <span class="div-b">|</span>
 
     <!-- Flux opérationnel -->
-    <a href="{{ url_for('work_douane') }}"     title="Douane">🛃</a>
-    <a href="{{ url_for('work_photo') }}"      title="Photo">📸</a>
+    <a href="{{ url_for('work_douane') }}" title="Douane">🛃</a>
+    <a href="{{ url_for('work_photo') }}" title="Photo">📸</a>
     <a href="{{ url_for('work_inspection') }}" title="Inspection">🔍</a>
-    <a href="{{ url_for('work_rac') }}"        title="RAC">🧩</a>
-    <a href="{{ url_for('work_emballage') }}"  title="Emballage">📦</a>
-    <a href="{{ url_for('work_expe') }}"       title="Expédition">🚚</a>
+    <a href="{{ url_for('work_rac') }}" title="RAC">🧩</a>
+    <a href="{{ url_for('work_emballage') }}" title="Emballage">📦</a>
+    <a href="{{ url_for('work_expe') }}" title="Expédition">🚚</a>
 
-    <!-- Archives selon RBAC -->
+    <!-- Archives (RBAC) -->
     {% if current_user.is_authenticated and current_user.role in ['admin','emballage','inspection'] %}
       <a href="{{ url_for('archives') }}" title="Archives">📁</a>
     {% endif %}
 
-    <!-- Robot selon RBAC -->
+    <!-- Robot (RBAC) -->
     {% if current_user.is_authenticated and current_user.role in ['admin','photo','inspection','emballage'] %}
       <a href="{{ url_for('robot_status') }}" title="Robot MiR">🤖</a>
+    {% endif %}
+
+    <!-- Manager Dashboard (RBAC) -->
+    {% if current_user.is_authenticated and current_user.role in ['admin','manager'] %}
+      <a href="{{ url_for('manager_dashboard') }}" title="Dashboard Manager">📊</a>
     {% endif %}
 
     <!-- Zone utilisateur -->

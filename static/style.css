@@ -352,3 +352,8 @@ button {
     font-size: 0.85rem;
     color: var(--muted);
 }
+
+/* Badges utilitaires (optionnels) */
+.badge-encours { background: var(--accent); border-color: var(--accent-dark); color: #021016; }
+.badge-pret    { background: var(--purple); border-color: var(--purple-dark); color: #fff; }
+.badge-nogo    { background: var(--danger); border-color: var(--danger-dark); color: #fff; }
