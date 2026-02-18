@@ -723,6 +723,58 @@ def create_app():
         _movement(item_id, f'EXPE_{kind.upper()}'); log_delete(item_id, user=getattr(current_user,'username',None))
         flash('Expédition effectuée → Item supprimé (logique)','ok'); return redirect(url_for('work_expe'))
 
+# ===================== ROBOT MiR ===============================
+    from mir_client import MiRClient
+
+    @app.route('/robot/status')
+    @login_required
+    @role_required('admin','photo','inspection','emballage')
+    def robot_status():
+        """
+        Affiche l'état du robot :
+        - DRY-RUN: faux retour (utile sur poste dev / Raspi sans robot)
+        - LIVE    : lecture via l'API MiR
+        """
+        try:
+            c = MiRClient()        # lit MIR_* dans l'env
+            st = c.status()        # dict
+            dry = getattr(c, 'dry', True)
+            return render_template('robot_status.html', status=st, dry=dry)
+        except Exception as e:
+            flash(f"Erreur statut robot: {e}", "error")
+            return render_template('robot_status.html', status=None, dry=True), 500
+
+
+    @app.route('/robot/mission', methods=['POST'])
+    @login_required
+    @role_required('admin','photo','inspection','emballage')
+    def robot_mission():
+        """
+        Démarre une mission simple côté MiR.
+        Form field: target = 'POSTE-PHOTO' | 'POSTE-INSPECTION' | 'POSTE-EMBALLAGE'
+        """
+        target = (request.form.get('target') or 'POSTE-PHOTO').upper()
+
+        try:
+            c = MiRClient()
+            missions = c.missions()           # liste {'name','guid'}
+            match = next((m for m in missions if m['name'].upper() == target), None)
+            if not match:
+                flash("Mission inconnue sur MiR.", "error")
+                return redirect(url_for('robot_status'))
+
+            res = c.start_mission(match['guid'])   # déclenchement
+            dry = getattr(c, 'dry', True)
+            msg = "Mission envoyée" + (" (DRY-RUN)" if dry else "")
+            flash(msg, "ok")
+            return redirect(url_for('robot_status'))
+
+        except Exception as e:
+            flash(f"Erreur mission: {e}", "error")
+            return redirect(url_for('robot_status'))
+
+
+
     @app.route('/archives')
     @login_required
     @role_required('admin','emballage','inspection')

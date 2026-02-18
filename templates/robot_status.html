@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}🤖 Robot MiR – Statut{% endblock %}
+
+{% block content %}
+
+<h2 style="margin-bottom:1rem;">🤖 Robot MiR — Statut</h2>
+<p class="muted" style="margin-bottom:1rem;">
+  Mode : <strong>{{ 'DRY-RUN (simulation)' if dry else 'LIVE' }}</strong>
+</p>
+
+<div class="cards">
+
+  <div class="card">
+    <h3>État général</h3>
+    {% if status %}
+      <p><strong>Robot :</strong> {{ status.get('robot_name', '—') }}</p>
+      <p><strong>State :</strong> {{ status.get('state_text', '—') }}</p>
+      <p><strong>Mission :</strong> {{ status.get('mission_text', '—') }}</p>
+      <p><strong>Batterie :</strong> {{ status.get('battery_percentage', '—') }}%</p>
+    {% else %}
+      <p class="muted">Statut indisponible.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>Position</h3>
+    {% set pos = status.get('position') if status else None %}
+    {% if pos %}
+      <p><strong>x :</strong> {{ pos['x'] }} — <strong>y :</strong> {{ pos['y'] }} — <strong>θ :</strong> {{ pos['orientation'] }}</p>
+    {% else %}
+      <p class="muted">Position inconnue.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>Déclencher une mission</h3>
+    <form method="post" action="{{ url_for('robot_mission') }}" onsubmit="disableOnSubmit(this)" class="row" style="gap:.6rem; align-items:flex-end;">
+      <div>
+        <label class="muted" style="display:block;margin-bottom:.25rem;">Mission</label>
+        <select name="target">
+          <option value="POSTE-PHOTO">POSTE-PHOTO</option>
+          <option value="POSTE-INSPECTION">POSTE-INSPECTION</option>
+          <option value="POSTE-EMBALLAGE">POSTE-EMBALLAGE</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" type="submit">Démarrer</button>
+    </form>
+
+    <p class="muted" style="margin-top:.7rem;">
+      * Le DRY‑RUN simule l’appel et renvoie une réponse de démonstration.
+    </p>
+  </div>
+
+</div>
+
+{% endblock %}

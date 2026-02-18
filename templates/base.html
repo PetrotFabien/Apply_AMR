@@ -72,5 +72,10 @@
     <a href="{{ url_for('archives') }}">📁</a>
 {% endif %}
 
+{% if current_user.is_authenticated and current_user.role in ['admin','photo','inspection','emballage'] %}
+  <a href="{{ url_for('robot_status') }}" title="Robot MiR">🤖</a>
+{% endif %}
+
+
 </body>
 </html>
