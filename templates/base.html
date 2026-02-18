@@ -68,13 +68,15 @@
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 
 {% block scripts %}{% endblock %}
-{% if current_user.is_authenticated and current_user.role in ['admin','emballage','inspection'] %}
+{% if current_user.is_authenticated and current_user.role in ['admin'] %}
     <a href="{{ url_for('archives') }}">📁</a>
 {% endif %}
 
-{% if current_user.is_authenticated and current_user.role in ['admin','photo','inspection','emballage'] %}
+{% if current_user.is_authenticated and current_user.role in ['admin'] %}
   <a href="{{ url_for('robot_status') }}" title="Robot MiR">🤖</a>
 {% endif %}
+
+
 
 
 </body>

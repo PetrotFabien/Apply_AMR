@@ -6,7 +6,7 @@
 <h2 style="margin-bottom:1rem;">📸 Poste Photo</h2>
 
 <p class="muted" style="margin-bottom:1.4rem;">
-  Articles en <strong>Attente photo</strong>.  
+  Articles en <strong>Attente photo</strong>.<br>
   Après “Photo OK”, un placement est obligatoire : <strong>Étagère</strong> ou <strong>SOL (AMR)</strong>.
 </p>
 
@@ -28,14 +28,15 @@
 
     <div class="row-right" style="margin-top:.6rem; gap:.6rem;">
       <!-- Photo OK (ouvre le choix du placement) -->
-      {{ url_for(
+      <form method="post"
+            action="{{ url_for('photo_ok', item_id=it['id']) }}"
+            class="inline"
+            onsubmit="disableOnSubmit(this)">
         <button class="btn btn-ok" type="submit">📷 Photo OK</button>
       </form>
 
       <!-- Détails -->
-      {{ url_for(
-        Détails
-      </a>
+      <a class="btn" href="{{ url_for('item_detail', item_id=it['id']) }}">Détails</a>
     </div>
 
   </div>
@@ -45,7 +46,7 @@
 </div>
 
 
-<!-- =============== CHOIX DE PLACEMENT (modal basique) =============== -->
+{# =============== CHOIX DE PLACEMENT (modal simple Thème A) =============== #}
 {% if choose == 'storage' and modal_item_id %}
 <div class="modal-backdrop" style="z-index:50;">
   <div class="modal" style="max-width:650px;">
@@ -58,19 +59,23 @@
       <!-- ÉTAGÈRE -->
       <div class="card">
         <h4>Étagère</h4>
-        {{ url_for(
+        <form method="post"
+              action="{{ url_for('photo_place_shelf') }}"
+              onsubmit="disableOnSubmit(this)">
           <input type="hidden" name="item_id" value="{{ modal_item_id }}">
+
           <label>Niveau</label>
           <select name="level">
             <option value="1">1 (Encours)</option>
             <option value="2">2 (Encours)</option>
+            {# E3 (NOGO) uniquement si statut NOGO — garde-fou côté UI #}
             <option value="3"
-              {% set current = items | selectattr('id','equalto',modal_item_id)
-                                    | map(attribute='status')
-                                    | list | first %}
-              {% if current != 'NOGO' %}
-                disabled
-              {% endif %}
+              {% set current_status = items
+                                        | selectattr('id','equalto',modal_item_id)
+                                        | map(attribute='status')
+                                        | list
+                                        | first %}
+              {% if current_status != 'NOGO' %}disabled{% endif %}
             >3 (NOGO)</option>
           </select>
 
@@ -86,8 +91,11 @@
       <!-- SOL (AMR) -->
       <div class="card">
         <h4>SOL (AMR)</h4>
-        {{ url_for(
+        <form method="post"
+              action="{{ url_for('photo_place_amr') }}"
+              onsubmit="disableOnSubmit(this)">
           <input type="hidden" name="item_id" value="{{ modal_item_id }}">
+
           <label>Chariot</label>
           <select name="amr_size">
             <option value="GRAND">GRAND</option>
@@ -100,9 +108,7 @@
     </div>
 
     <div class="row-right" style="margin-top:1.2rem;">
-      <button class="btn btn-ghost" onclick="document.querySelector('.modal-backdrop').remove()">
-        Annuler
-      </button>
+      <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
     </div>
 
   </div>

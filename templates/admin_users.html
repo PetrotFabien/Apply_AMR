@@ -88,28 +88,39 @@
 
           <td style="white-space:nowrap;">
 
-            <!-- Activation / Désactivation -->
+            <!-- Activer / Désactiver -->
             <form method="post"
                   action="{{ url_for('admin_users_toggle', uid=u['id']) }}"
-                  class="inline" style="display:inline;"
+                  class="inline"
                   onsubmit="disableOnSubmit(this)">
               <button class="btn btn-ghost" type="submit">
                 {% if u['active'] %}Désactiver{% else %}Activer{% endif %}
               </button>
             </form>
-
-            <!-- Changement mot de passe -->
+          
+            <!-- Changer de rôle -->
+            <form method="post"
+                  action="{{ url_for('admin_users_role', uid=u['id']) }}"
+                  class="inline"
+                  onsubmit="disableOnSubmit(this)">
+              <select name="role" style="width:130px;">
+                {% for r in ROLES %}
+                  <option value="{{ r }}" {% if u['role'] == r %}selected{% endif %}>{{ r }}</option>
+                {% endfor %}
+              </select>
+              <button class="btn" type="submit" title="Appliquer le rôle">OK</button>
+            </form>
+          
+            <!-- Changer le mot de passe -->
             <form method="post"
                   action="{{ url_for('admin_users_password', uid=u['id']) }}"
-                  class="inline" style="display:inline;"
+                  class="inline"
                   onsubmit="disableOnSubmit(this)">
-              <input type="password" name="password"
-                     placeholder="Nouveau MDP (≥8)"
-                     style="width:130px;">
+              <input type="password" name="password" placeholder="Nouveau MDP (≥8)" style="width:150px;">
               <button class="btn" type="submit">MDP</button>
             </form>
-
-          </td>
+          
+          </td>          
 
         </tr>
         {% else %}

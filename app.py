@@ -8,6 +8,44 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from mir_client import MiRClient
 from processus import Item, Location, can_move, choose_slot
 
+# --- ROLES ACCEPTÉS DANS LE SYSTÈME ----------------------------------
+ROLES = [
+    "admin",
+    "douane",
+    "photo",
+    "inspection",
+    "rac",
+    "emballage",
+    "expedition",
+    "user"
+]
+
+# Mapping : route → rôles autorisés
+ROLE_PERMISSIONS = {
+    "index": ROLES,  # tout le monde
+    "items": ["admin", "user"],
+
+    # Flux principal
+    "work_douane": ["admin", "douane"],
+    "work_photo": ["admin", "photo"],
+    "work_inspection": ["admin", "inspection"],
+    "work_rac": ["admin", "rac"],
+    "work_emballage": ["admin", "emballage"],
+    "work_expe": ["admin", "expedition"],
+
+    # Admin
+    "admin_users": ["admin"],
+
+    # Archives
+    "archives": ["admin"],
+    "archives_export": ["admin"],
+
+    # Robot MiR
+    "robot_status": ["admin"],
+    "robot_mission": ["admin", "photo", "inspection", "emballage"]
+}
+
+
 BASE_DIR=os.path.dirname(os.path.abspath(__file__))
 DATA_DIR=os.path.join(BASE_DIR,'data')
 UPLOAD_DIR=os.path.join(BASE_DIR,'uploads')
@@ -27,6 +65,7 @@ class SimpleUser(UserMixin):
 
 def create_app():
     app=Flask(__name__); app.config['UPLOAD_FOLDER']=UPLOAD_DIR
+    app.jinja_env.globals['ROLES'] = ROLES
     app.secret_key=os.environ.get('SECRET_KEY','dev-secret'); app.config['SESSION_COOKIE_SECURE']=SESSION_COOKIE_SECURE
 
     def get_db():
@@ -340,19 +379,19 @@ def create_app():
     def _ensure_active(it):
         if not it or it['active']!=1: abort(404)
 
+# ------ Décorateur role requirement -----#
+
     def role_required(*roles):
-        """Décorateur RBAC strict.
-        Ex : @role_required('admin', 'photo')
-        """
+        """RBAC strict basé sur la liste des rôles autorisés."""
         def decorator(fn):
             @wraps(fn)
             def wrapper(*args, **kwargs):
                 if not current_user.is_authenticated:
                     abort(403)
 
-                user_role = getattr(current_user, "role", None)
-                if user_role not in roles:
-                    flash("Accès refusé (rôle requis)", "error")
+                role = getattr(current_user, "role", None)
+                if role not in roles:
+                    flash("Accès refusé : rôle non autorisé.", "error")
                     return abort(403)
 
                 return fn(*args, **kwargs)
@@ -497,6 +536,38 @@ def create_app():
         pwd=(request.form.get('password') or '').strip()
         if len(pwd)<8: flash('Mot de passe trop court (>=8)','error'); return redirect(url_for('admin_users'))
         db=get_db(); db.execute('UPDATE user SET password_hash=? WHERE id=?',(generate_password_hash(pwd),uid)); db.commit(); flash('Mot de passe mis à jour','ok')
+        return redirect(url_for('admin_users'))
+
+    @app.route('/admin/users/role/<int:uid>', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def admin_users_role(uid):
+        role = request.form.get("role")
+        if role not in ROLES:
+            flash("Rôle invalide.", "error")
+            return redirect(url_for('admin_users'))
+
+        db = get_db()
+        db.execute("UPDATE user SET role=? WHERE id=?", (role, uid))
+        db.commit()
+
+        flash(f"Rôle utilisateur mis à jour : {role}", "ok")
+        return redirect(url_for('admin_users'))
+
+    @app.route('/admin/users/role/<int:uid>', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def admin_users_role(uid):
+        role = (request.form.get("role") or "").strip()
+        if role not in ROLES:
+            flash("Rôle invalide.", "error")
+            return redirect(url_for('admin_users'))
+
+        db = get_db()
+        db.execute("UPDATE user SET role=? WHERE id=?", (role, uid))
+        db.commit()
+
+        flash(f"Rôle utilisateur mis à jour : {role}", "ok")
         return redirect(url_for('admin_users'))
 
     # -------------------- WORKFLOWS --------------------
@@ -728,7 +799,7 @@ def create_app():
 
     @app.route('/robot/status')
     @login_required
-    @role_required('admin','photo','inspection','emballage')
+    @role_required('admin')
     def robot_status():
         """
         Affiche l'état du robot :
@@ -777,7 +848,7 @@ def create_app():
 
     @app.route('/archives')
     @login_required
-    @role_required('admin','emballage','inspection')
+    @role_required('admin')
     def archives():
         db = get_db()
         q = (request.args.get("q") or "").strip()
@@ -802,7 +873,7 @@ def create_app():
 
         @app.route('/archives/export')
         @login_required
-        @role_required('admin','emballage','inspection')
+        @role_required('admin')
         def archives_export():
             import csv, io
 
