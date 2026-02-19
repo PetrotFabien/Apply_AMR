@@ -8,8 +8,8 @@
 
 <p class="muted" style="margin-bottom:1.4rem;">
     Articles en <strong>Attente photo</strong>.<br>
-    Après “Photo OK”, un placement est obligatoire :
-    <strong>Étagère</strong> ou <strong>SOL (AMR)</strong>.
+    Après “Photo OK”, un placement est obligatoire
+    (<strong>Étagère</strong> ou <strong>SOL (AMR)</strong>).
 </p>
 
 <div class="cards">
@@ -24,18 +24,19 @@
         </div>
 
         <!-- INFOS -->
-        <div class="muted" style="margin:.5rem 0;">
+        <p class="muted" style="margin:.5rem 0;">
             <span class="badge">Taille : {{ it.size }}</span>
             <span class="badge">StRepair : {{ '1' if it.st_repair else '0' }}</span>
             <span class="badge">RepairSNPA : {{ '1' if it.repair_snpa else '0' }}</span>
             <span class="badge">Empl : {{ it.loc_code or '—' }}</span>
-        </div>
+        </p>
 
         <!-- ACTIONS -->
-        <div class="row-right" style="margin-top:.7rem; gap:.6rem;">
+        <div class="row-right" style="gap:.7rem;">
 
-            <!-- Photo OK : POST -->
-            <form method="post" action="{{ url_for('photo_ok', item_id=it.id) }}" onsubmit="disableOnSubmit(this)">
+            <!-- PHOTO OK = redirection vers ?modal=placement -->
+            <form method="post" action="{{ url_for('work_photo') }}" onsubmit="disableOnSubmit(this)">
+                <input type="hidden" name="item_id" value="{{ it.id }}">
                 <button class="btn btn-ok" type="submit">📷 Photo OK</button>
             </form>
 
@@ -46,96 +47,80 @@
 
     </div>
     {% else %}
-        <div class="card"><em>Aucun article en attente photo.</em></div>
+    <div class="card"><em>Aucun article en attente photo.</em></div>
     {% endfor %}
 
 </div>
 
+{% endblock %}
 
 
-{# ============================================================================
-   MODALE FULL SCREEN — affichée si choose='storage'
-============================================================================ #}
 
-{% if choose == 'storage' and modal_item_id %}
+{% block modal %}
+
+{% if request.args.get('modal') == 'placement' and request.args.get('id') %}
+    {% set mid = request.args.get('id') %}
 
     {% set body %}
-        <div class="grid2">
 
-            <!-- ================= ÉTAGÈRE ================= -->
-            <div class="card">
-                <h4>Étagère</h4>
+    <div class="grid2">
 
-                <form method="post"
-                      action="{{ url_for('photo_place_shelf') }}"
-                      onsubmit="disableOnSubmit(this)">
+        <!-- ================= ÉTAGÈRE ================= -->
+        <div class="card">
+            <h4>Étagère</h4>
 
-                    <input type="hidden" name="item_id" value="{{ modal_item_id }}">
+            <form method="post" action="{{ url_for('photo_place_shelf') }}" onsubmit="disableOnSubmit(this)">
+                <input type="hidden" name="item_id" value="{{ mid }}">
 
-                    <label>Niveau</label>
-                    <select name="level">
-                        <option value="1">1 (Encours)</option>
-                        <option value="2">2 (Encours)</option>
+                <label>Niveau</label>
+                <select name="level">
+                    <option value="1">1 (Encours)</option>
+                    <option value="2">2 (Encours)</option>
+                    <option value="3">3 (NOGO)</option>
+                </select>
 
-                        {# Niveau 3 seulement si status == NOGO #}
-                        {% set current = items
-                            | selectattr('id', 'equalto', modal_item_id)
-                            | map(attribute='status')
-                            | list
-                            | first
-                        %}
-                        <option value="3" {% if current != 'NOGO' %}disabled{% endif %}>
-                            3 (NOGO)
-                        </option>
-                    </select>
+                <label style="margin-top:.6rem;">Plateau</label>
+                <select name="plate">
+                    <option>A</option><option>B</option>
+                    <option>C</option><option>D</option>
+                </select>
 
-                    <label style="margin-top:.6rem;">Plateau</label>
-                    <select name="plate">
-                        <option>A</option>
-                        <option>B</option>
-                        <option>C</option>
-                        <option>D</option>
-                    </select>
-
-                    <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
-                        Placer étagère
-                    </button>
-                </form>
-            </div>
-
-
-            <!-- ================= SOL (AMR) ================= -->
-            <div class="card">
-                <h4>SOL (AMR)</h4>
-
-                <form method="post"
-                      action="{{ url_for('photo_place_amr') }}"
-                      onsubmit="disableOnSubmit(this)">
-
-                    <input type="hidden" name="item_id" value="{{ modal_item_id }}">
-
-                    <label>Chariot</label>
-                    <select name="amr_size">
-                        <option value="GRAND">GRAND</option>
-                        <option value="PETIT" selected>PETIT</option>
-                    </select>
-
-                    <button class="btn btn-ok" type="submit" style="margin-top:1rem;">
-                        Placer AMR
-                    </button>
-                </form>
-            </div>
-
+                <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
+                    Placer étagère
+                </button>
+            </form>
         </div>
+
+
+
+        <!-- ================= SOL (AMR) ================= -->
+        <div class="card">
+            <h4>SOL (AMR)</h4>
+
+            <form method="post" action="{{ url_for('photo_place_amr') }}" onsubmit="disableOnSubmit(this)">
+                <input type="hidden" name="item_id" value="{{ mid }}">
+
+                <label>Chariot</label>
+                <select name="amr_size">
+                    <option value="PETIT">PETIT</option>
+                    <option value="GRAND">GRAND</option>
+                </select>
+
+                <button class="btn btn-ok" type="submit" style="margin-top:1rem;">
+                    Placer AMR
+                </button>
+            </form>
+        </div>
+
+    </div>
+
     {% endset %}
 
-    {% block modal %}
-        {{ modal(
-            title="Placement obligatoire",
-            body_html=body,
-            footer_html="<button class='btn btn-ghost' data-modal-close>Annuler</button>"
-        ) }}
-    {% endblock %}
+    {{ modal(
+        title="Placement obligatoire",
+        body_html=body,
+        footer_html="<button class='btn btn-ghost' onclick='closeGlobalModal()'>Annuler</button>"
+    ) }}
 
 {% endif %}
 

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}📊 Global WIP – Thème B{% endblock %}
+
+{% block content %}
+
+<h2 style="margin-bottom:1rem;">📊 Global WIP</h2>
+
+<p class="muted" style="margin-bottom:1rem;">
+    Vue globale des encours du flux — rafraîchissement toutes les <strong>10 s</strong>.
+</p>
+
+<!-- ==================== FILTRE ==================== -->
+<div class="card" style="margin-bottom:1rem;">
+    <form method="get" id="filterForm" class="row" style="gap:1rem;align-items:center;">
+        <label class="muted" style="cursor:pointer;">
+            <input type="checkbox" name="hide_nogo" id="hide_nogo"
+                   {% if request.args.get('hide_nogo') %}checked{% endif %}>
+            Masquer les NOGO
+        </label>
+    </form>
+</div>
+
+<!-- ===================== TABLE STYLE AÉROPORT ===================== -->
+<div class="card">
+    <table class="table" style="font-size:1.05rem;">
+        <thead>
+        <tr>
+            <th>SKU</th>
+            <th>Avis</th>
+            <th>Statut</th>
+            <th>Prochaine phase</th>
+            <th>Dernière maj</th>
+            <th>Détails</th>
+        </tr>
+        </thead>
+
+        <tbody>
+
+        {% for it in items %}
+
+            
+        {% if not (request.args.get('hide_nogo') and it.status == "NOGO") %}
+        
+        {% endif %}
+
+
+            <tr class="encours-row {% if it.status == 'NOGO' %}row-nogo{% endif %}">
+                <td><strong>{{ it.sku }}</strong></td>
+                <td>{{ it.avis_no or '—' }}</td>
+
+                <td>
+                    {% if it.status == "NOGO" %}
+                        <span class="badge" style="background:var(--danger);border-color:var(--danger-dark);">
+                            {{ it.status }}
+                        </span>
+                    {% else %}
+                        <span class="badge">{{ it.status }}</span>
+                    {% endif %}
+                </td>
+
+                <td>{{ it.next }}</td>
+
+                <td style="white-space:nowrap;">{{ it.updated_at }}</td>
+
+                <td>
+                    <a class="btn" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
+                </td>
+            </tr>
+
+        {% else %}
+            <tr>
+                <td colspan="6" class="muted">Aucun article actif.</td>
+            </tr>
+        {% endfor %}
+
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+// Auto-refresh toutes les 10 secondes
+setInterval(() => { window.location.reload(); }, 10000);
+
+// Filtre automatique pour masquer les NOGO
+document.getElementById("hide_nogo").addEventListener("change", () => {
+    document.getElementById("filterForm").submit();
+});
+</script>
+
+<style>
+/* Style type tableau de départ aéroport */
+.encours-row {
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+.encours-row:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+/* Ligne NOGO en rouge */
+.row-nogo {
+    background: rgba(239,68,68,0.18) !important;
+}
+
+.row-nogo:hover {
+    background: rgba(239,68,68,0.28) !important;
+}
+</style>
+{% endblock %}

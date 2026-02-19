@@ -8,8 +8,8 @@
 
 <p class="muted" style="margin-bottom:1.4rem;">
     Articles en <strong>Attente inspection</strong>.<br>
-    ✔ <strong>OK</strong> → choix <strong>Pool</strong> ou <strong>Emballage</strong><br>
-    ✖ <strong>NOK</strong> → <strong>Prison</strong>
+    ✔ <strong>OK</strong> → ouverture d’une modale de décision Pool<br>
+    ✖ <strong>NOK</strong> → Prison
 </p>
 
 <div class="cards">
@@ -19,31 +19,36 @@
 
         <!-- HEADER -->
         <div class="row" style="justify-content:space-between; align-items:center;">
-            <h3 style="margin:0;">SKU {{ it['sku'] }}</h3>
+            <h3 style="margin:0;">SKU {{ it.sku }}</h3>
             <span class="badge">Attente inspection</span>
         </div>
 
-        <!-- INFO -->
+        <!-- INFOS -->
         <p class="muted" style="margin:.6rem 0;">
-            <span class="badge">Taille : {{ it['size'] or '—' }}</span>
-            <span class="badge">Empl : {{ it['loc_code'] or '—' }}</span>
+            <span class="badge">Taille : {{ it.size }}</span>
+            <span class="badge">StRepair : {{ '1' if it.st_repair else '0' }}</span>
+            <span class="badge">RepairSNPA : {{ '1' if it.repair_snpa else '0' }}</span>
+            <span class="badge">Empl : {{ it.loc_code or '—' }}</span>
         </p>
 
         <!-- ACTIONS -->
-        <div class="row-right" style="gap:.6rem; margin-top:.8rem;">
+        <div class="row-right" style="gap:.7rem;">
 
-            <!-- OK -->
-            <form method="post" action="{{ url_for('inspection_ok', item_id=it['id']) }}" onsubmit="disableOnSubmit(this)">
+            <!-- OK → redirection vers /work/inspection?modal=pool&id=X -->
+            {{ url_for(
+                <input type="hidden" name="item_id" value="{{ it.id }}">
                 <button class="btn btn-ok" type="submit">✔ OK</button>
             </form>
 
-            <!-- NOK -->
-            <form method="post" action="{{ url_for('inspection_nok', item_id=it['id']) }}" onsubmit="disableOnSubmit(this)">
+            <!-- NOK → passage en PRISON -->
+            {{ url_for(
+                <input type="hidden" name="item_id" value="{{ it.id }}">
+                <input type="hidden" name="action" value="NOK">
                 <button class="btn btn-danger" type="submit">✖ NOK</button>
             </form>
 
             <!-- Détails -->
-            <a class="btn" href="{{ url_for('item_detail', item_id=it['id']) }}">Détails</a>
+            {{ url_for(Détails</a>
 
         </div>
 
@@ -54,59 +59,55 @@
 
 </div>
 
+{% endblock %}
 
-{# ============================================================================
-   MODALE FULL-SCREEN (server-side injection)
-   Affichée quand : ask_pool == True ET modal_item_id != None
-============================================================================ #}
 
-{% if ask_pool and modal_item_id %}
+
+{% block modal %}
+
+{# ==============================================================
+   MODALE POOL — S’affiche si /work/inspection?modal=pool&id=xyz
+================================================================ #}
+
+{% if request.args.get('modal') == 'pool' and request.args.get('id') %}
+    {% set mid = request.args.get('id') %}
 
     {% set body %}
+
         <p class="muted">
             Inspection OK.<br>
-            Voulez‑vous placer l’article en <strong>Pool</strong>
+            Souhaitez-vous placer l’article en <strong>Pool</strong>
             (suppression logique) ?
         </p>
 
-        <div class="row-right" style="gap:1rem; margin-top:1.4rem;">
+        <div class="row-right" style="margin-top:1.2rem; gap:.7rem;">
 
-            <!-- OUI ─ supprimer -->
-            <form method="post" action="{{ url_for('inspection_pool_decision') }}" onsubmit="disableOnSubmit(this)">
-                <input type="hidden" name="item_id" value="{{ modal_item_id }}">
-                <button class="btn btn-ok"
-                        type="submit"
-                        name="choice"
-                        value="oui"
-                        data-modal-primary>
+            <!-- OUI → suppression logique -->
+            {{ url_for(
+                <input type="hidden" name="item_id" value="{{ mid }}">
+                <button class="btn btn-ok" name="choice" value="oui" type="submit">
                     Oui — supprimer
                 </button>
             </form>
 
-            <!-- NON ─ envoyer à emballage -->
-            <form method="post" action="{{ url_for('inspection_pool_decision') }}" onsubmit="disableOnSubmit(this)">
-                <input type="hidden" name="item_id" value="{{ modal_item_id }}">
-                <button class="btn btn-warn"
-                        type="submit"
-                        name="choice"
-                        value="non"
-                        data-modal-primary>
-                    Non — → Emballage
+            <!-- NON → envoi vers Emballage -->
+            {{ url_for(
+                <input type="hidden" name="item_id" value="{{ mid }}">
+                <button class="btn btn-warn" name="choice" value="non" type="submit">
+                    Non — Emballage
                 </button>
             </form>
 
         </div>
+
     {% endset %}
 
-    {% block modal %}
-        {{ modal(
-            title="Décision Pool",
-            body_html=body,
-            footer_html="<button class='btn btn-ghost' data-modal-close>Annuler</button>"
-        ) }}
-    {% endblock %}
+    {{ modal(
+        title="Décision Pool",
+        body_html=body,
+        footer_html="<button class='btn btn-ghost' onclick='closeGlobalModal()'>Annuler</button>"
+    ) }}
 
 {% endif %}
 
 {% endblock %}
-``

@@ -115,6 +115,11 @@ function bindModalEvents() {
 function escHandler(e) {
     if (e.key === "Escape") closeModal();
 }
+    //close Modals windows
+function closeGlobalModal() {
+    window.location = window.location.pathname;
+}
+
 
 
 /* ============================================================================
