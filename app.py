@@ -721,7 +721,7 @@ def create_app():
         if request.method == "GET":
             items = db.execute("""
                 SELECT * FROM item 
-                WHERE status='ATTENTE_PHOTO' AND active=1
+                WHERE status='Attente photo' AND active=1
                 ORDER BY created_at ASC
             """).fetchall()
             return render_template("work_photo.html", items=items)
