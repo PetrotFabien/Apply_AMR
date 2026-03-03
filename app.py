@@ -18,6 +18,7 @@ ROLES = [
     "rac",
     "emballage",
     "expedition",
+    "reception",
     "user"
 ]
 
@@ -28,6 +29,7 @@ ROLE_PERMISSIONS = {
     "manager_dashboard": ["admin", "manager"],
 
     # Flux principal
+    "work_reception" : ["admin", "reception"],
     "work_douane": ["admin", "douane"],
     "work_photo": ["admin", "photo"],
     "work_inspection": ["admin", "inspection"],
@@ -580,6 +582,7 @@ def create_app():
 
  # Soft delete
         db.execute("UPDATE item SET active=0, updated_at=CURRENT_TIMESTAMP WHERE id=?", (item_id,))
+
  # Journalisation , si table movement
         try:
             db.execute("""
@@ -763,7 +766,7 @@ def create_app():
         item_id = request.form["item_id"]
         size = request.form["amr_size"]
 
-        # Emplacement AMR fixe / dynamique selon ton modèle :
+        # Emplacement AMR fixe / dynamique :
         loc = "SOLG1" if size == "GRAND" else "SOLP1"
 
         db.execute("UPDATE item SET loc_code=?, status='ATTENTE_INSPECTION', updated_at=CURRENT_TIMESTAMP WHERE id=?",
