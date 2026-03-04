@@ -51,6 +51,7 @@ CREATE TABLE item(
     active INTEGER NOT NULL DEFAULT 1,
     st_repair INTEGER NOT NULL DEFAULT 0,
     repair_snpa INTEGER NOT NULL DEFAULT 0,
+    hors_gabarit INTEGER NOT NULL DEFAULT 0,
     location_id INTEGER,
     avis_no TEXT,
     order_no TEXT,
@@ -64,7 +65,7 @@ CREATE TABLE item(
 db.execute("""
 INSERT INTO item(
     id, sku, description, photo_path, size,
-    status, active, st_repair, repair_snpa,
+    status, active, st_repair, repair_snpa, hors_gabarit,
     location_id, avis_no, order_no, bl_no,
     created_at, updated_at
 )
@@ -85,6 +86,7 @@ SELECT
     COALESCE(active,1),
     COALESCE(st_repair,0),
     COALESCE(repair_snpa,0),
+    0,
     location_id,
     avis_no,
     order_no,

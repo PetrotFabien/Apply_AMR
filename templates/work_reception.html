@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}📦 Réception – Création d'articles{% endblock %}
+
+{% block content %}
+
+<h2 style="margin-bottom:1rem;">📦 Réception – Créer un article (Input Client)</h2>
+
+<p class="muted" style="margin-bottom:1.4rem;">
+    Les articles créés sont en statut <strong>Attente douane</strong>.<br>
+    Remplissez le formulaire ci-dessous pour créer un nouvel article.
+</p>
+
+<!-- FORMULAIRE CRÉATION -->
+<div class="card" style="max-width:600px; margin-bottom:2rem;">
+    <h3>➕ Nouvel Article</h3>
+    
+    <form method="post" action="{{ url_for('work_reception') }}" style="display:flex; flex-direction:column; gap:1rem;">
+        
+        <!-- Référence (Avis ou SKU) -->
+        <div>
+            <label><strong>Référence *</strong></label>
+            <input type="text" name="sku" placeholder="ex: AUTO-001" required style="width:100%; padding:.5rem;">
+        </div>
+        
+        <!-- PN (Part Number) -->
+        <div>
+            <label><strong>PN (Part Number)</strong></label>
+            <input type="text" name="pn" placeholder="ex: MZ-PN-12345" style="width:100%; padding:.5rem;">
+        </div>
+        
+        <!-- Description -->
+        <div>
+            <label><strong>Description</strong></label>
+            <textarea name="description" placeholder="Détails de l'article..." style="width:100%; padding:.5rem; min-height:80px; font-family:monospace;"></textarea>
+        </div>
+        
+        <!-- Taille -->
+        <div>
+            <label><strong>Taille *</strong></label>
+            <select name="size" required style="width:100%; padding:.5rem;">
+                <option value="PETIT">PETIT</option>
+                <option value="GRAND">GRAND</option>
+            </select>
+        </div>
+        
+        <!-- Infos documents -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+            <div>
+                <label><strong>Avis N°</strong></label>
+                <input type="text" name="avis_no" placeholder="Numéro d'avis" style="width:100%; padding:.5rem;">
+            </div>
+            <div>
+                <label><strong>Commande N°</strong></label>
+                <input type="text" name="order_no" placeholder="Numéro de commande" style="width:100%; padding:.5rem;">
+            </div>
+        </div>
+        
+        <!-- BL N° -->
+        <div>
+            <label><strong>BL N° (Bon de Livraison)</strong></label>
+            <input type="text" name="bl_no" placeholder="Numéro BL" style="width:100%; padding:.5rem;">
+        </div>
+        
+        <!-- Checkboxes réparation / hors gabarit -->
+        <div style="display:flex; gap:1.5rem; margin-top:.5rem;">
+            <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer;">
+                <input type="checkbox" name="st_repair">
+                <strong>ST Repair</strong>
+            </label>
+            <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer;">
+                <input type="checkbox" name="repair_snpa">
+                <strong>Repair SNPA</strong>
+            </label>
+            <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer;">
+                <input type="checkbox" name="hors_gabarit">
+                <strong>Hors gabarit</strong>
+            </label>
+        </div>
+        
+        <!-- Bouton submit -->
+        <button type="submit" class="btn btn-primary" style="margin-top:1rem;">
+            ✅ Créer l'article
+        </button>
+    </form>
+</div>
+
+<!-- ARTICLES EN ATTENTE DOUANE -->
+<h3 style="margin-top:2rem; margin-bottom:1rem;">📋 Articles en Attente douane ({{ items|length }})</h3>
+
+<div class="cards">
+    {% for it in items %}
+    <div class="card">
+        
+        <!-- HEADER -->
+        <div class="row" style="justify-content:space-between; align-items:center;">
+            <div>
+                <h3 style="margin:0;">{{ it.avis_no or it.sku }}</h3>
+                {% if it.pn %}
+                    <p class="muted" style="margin:.3rem 0; font-size:0.9rem;">PN: <strong>{{ it.pn }}</strong></p>
+                {% endif %}
+            </div>
+            <span class="badge">Attente douane</span>
+        </div>
+        
+        <!-- INFOS -->
+        <div style="margin:.8rem 0; border-top:1px solid var(--border); padding-top:.8rem;">
+            {% if it.description %}
+                <p><strong>Description:</strong> {{ it.description }}</p>
+            {% endif %}
+            <p class="muted" style="margin:.5rem 0;">
+                <span class="badge">Taille: {{ it.size or '—' }}</span>
+                <span class="badge">StRepair: {{ '✓' if it.st_repair else '✗' }}</span>
+                <span class="badge">RepairSNPA: {{ '✓' if it.repair_snpa else '✗' }}</span>
+                <span class="badge">HG: {{ '✓' if it.hors_gabarit else '✗' }}</span>
+            </p>
+            {% if it.avis_no or it.order_no or it.bl_no %}
+                <p class="muted" style="font-size:0.85rem;">
+                    {% if it.avis_no %}<strong>Avis:</strong> {{ it.avis_no }} • {% endif %}
+                    {% if it.order_no %}<strong>Cmd:</strong> {{ it.order_no }} • {% endif %}
+                    {% if it.bl_no %}<strong>BL:</strong> {{ it.bl_no }}{% endif %}
+                </p>
+            {% endif %}
+        </div>
+        
+        <!-- ACTIONS -->
+        <div class="row-right" style="gap:.7rem; margin-top:.8rem;">
+            <a class="btn" href="{{ url_for('item_detail', item_id=it.id) }}">
+                📄 Détails
+            </a>
+        </div>
+    </div>
+    {% else %}
+        <div class="card"><em>Aucun article en Attente douane (en attente de créations).</em></div>
+    {% endfor %}
+</div>
+
+{% endblock %}
+

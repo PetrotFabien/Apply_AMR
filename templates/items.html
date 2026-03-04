@@ -34,6 +34,11 @@
             <div class="muted" style="font-size:.85rem;margin-top:.25rem;">Laisse vide pour auto-incrément</div>
         </div>
 
+        <div style="min-width:180px;">
+            <label class="muted">PN (Part Number)</label>
+            <input name="pn" placeholder="PN (optionnel)">
+        </div>
+
         <div style="flex:2;min-width:320px;">
             <label class="muted">Description</label>
             <input name="description" placeholder="Description (facultatif)">
@@ -51,6 +56,7 @@
             <label class="muted"><input type="checkbox" name="sous_douane"> Sous douane</label>
             <label class="muted"><input type="checkbox" name="st_repair"> StRepair</label>
             <label class="muted"><input type="checkbox" name="repair_snpa"> RepairSNPA</label>
+            <label class="muted"><input type="checkbox" name="hors_gabarit"> Hors gabarit</label>
         </div>
 
         <div class="row" style="width:100%;gap:1rem;flex-wrap:wrap;">
@@ -75,7 +81,7 @@
             <thead>
                 <tr>
                     <th>ID</th><th>SKU</th><th>Taille</th><th>Description</th>
-                    <th>StRepair</th><th>RepairSNPA</th><th>Statut</th>
+                    <th>StRepair</th><th>RepairSNPA</th><th>HG</th><th>Statut</th>
                     <th>Empl.</th><th style="white-space:nowrap;">Actions</th>
                 </tr>
             </thead>
@@ -90,6 +96,7 @@
                     <td>{{ it.description or '' }}</td>
                     <td>{{ '1' if it.st_repair else '0' }}</td>
                     <td>{{ '1' if it.repair_snpa else '0' }}</td>
+                    <td>{{ '1' if it.hors_gabarit else '0' }}</td>
                     <td>{{ it.status }}</td>
                     <td>{{ it.loc_code or '—' }}</td>
 

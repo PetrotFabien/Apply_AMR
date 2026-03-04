@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}🚫 Prison – Étape 11{% endblock %}
+
+{% block content %}
+
+<h2 style="margin-bottom:1rem;">🚫 Prison – En attente de Décision</h2>
+
+<p class="muted" style="margin-bottom:1.4rem;">
+    Articles en <strong>Prison</strong>.<br>
+    Décision: <strong style="color:#dc3545;">Supprimer</strong> → FIN | <strong style="color:#ffc107;">Retry</strong> → Inspection
+</p>
+
+<div class="cards">
+    {% for it in items %}
+    <div class="card">
+        <div class="row" style="justify-content:space-between; align-items:center;">
+            <h3 style="margin:0;">{{ it.avis_no or it.sku }}</h3>
+            <span class="badge" style="background:red;">Prison</span>
+        </div>
+        
+        <div style="margin:.8rem 0; border-top:1px solid var(--border); padding-top:.8rem;">
+            <p class="muted"><span class="badge">PN: {{ it.pn or '—' }}</span> <span class="badge">{{ it.size }}</span></p>
+        </div>
+        
+        <div class="row-right" style="gap:.6rem; margin-top:1rem;">
+            <form method="post" action="{{ url_for('prison_delete', item_id=it.id) }}" style="display:inline;" onsubmit="return confirm('Supprimer cet article ?');">
+                <button class="btn btn-danger" type="submit">🗑 Supprimer → FIN</button>
+            </form>
+            <form method="post" action="{{ url_for('prison_retry', item_id=it.id) }}" style="display:inline;">
+                <button class="btn btn-warning" type="submit">🔄 Retry → Inspection</button>
+            </form>
+            <a class="btn" href="{{ url_for('item_detail', item_id=it.id) }}">📄 Détails</a>
+        </div>
+    </div>
+    {% else %}
+        <div class="card"><em>Aucun article en Prison.</em></div>
+    {% endfor %}
+</div>
+
+{% endblock %}

@@ -30,11 +30,18 @@ ROLE_PERMISSIONS = {
 
     # Flux principal
     "work_reception" : ["admin", "reception"],
+    "work_reception_check" : ["admin", "reception"],
     "work_douane": ["admin", "douane"],
     "work_photo": ["admin", "photo"],
     "work_inspection": ["admin", "inspection"],
     "work_rac": ["admin", "rac"],
     "work_emballage": ["admin", "emballage"],
+    "work_sap": ["admin", "reception"],
+    "work_repair": ["admin"],
+    "work_pool": ["admin"],
+    "work_prison": ["admin"],
+    "work_kardex": ["admin"],
+    "work_input_st": ["admin"],
     "work_expe": ["admin", "expedition"],
 
     # Admin
@@ -104,10 +111,33 @@ def create_app():
 
         # 0) Statuts officiels du workflow strict  -----------------------------
         statuses = (
-            'Attente douane', 'Attente photo', 'Poste photo',
-            'Attente inspection', 'Attente RAC',
-            'Prison', 'Attente emballage', 'Emballage',
-            'Attente expédition client', 'Attente expédition ST', 'Attente départ T2',
+            # Phase Réception
+            'Attente douane',
+            'Attente réception',
+            'Poste photo',
+            'Attente RAC',
+            
+            # Phase Emballage & Réparation
+            'Poste emballage',
+            'Attente SAP',
+            'Réparation SNPA',
+            'Attente inspection',
+            'Attente photo RAC',
+            
+            # Phase Finalisation
+            'Pool',
+            'Prison',
+            'Kardex Input',
+            'Kardex Output',
+            'Préparation ST',
+            'Appel FO',
+            'Échange Standard',
+            'Exp Externe',
+            'Exp ST Return',
+            'Exp Client',
+            'Dossier Induction',
+            
+            # Statuts finaux
             'STOCK', 'NOGO', 'Supprimé'
         )
         status_check = ",".join([f"'{s}'" for s in statuses])
@@ -128,6 +158,7 @@ def create_app():
         CREATE TABLE IF NOT EXISTS item(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sku TEXT NOT NULL,
+            pn TEXT,
             description TEXT,
             photo_path TEXT,
             size TEXT CHECK(size IN ('GRAND','PETIT') OR size IS NULL),
@@ -135,10 +166,17 @@ def create_app():
             active INTEGER NOT NULL DEFAULT 1,
             st_repair INTEGER NOT NULL DEFAULT 0,
             repair_snpa INTEGER NOT NULL DEFAULT 0,
+            hors_gabarit INTEGER NOT NULL DEFAULT 0,
             location_id INTEGER,
             avis_no TEXT,
             order_no TEXT,
             bl_no TEXT,
+            is_nogo INTEGER NOT NULL DEFAULT 0,
+            is_repair_snpa INTEGER NOT NULL DEFAULT 0,
+            sap_created INTEGER NOT NULL DEFAULT 0,
+            pool_ok INTEGER NOT NULL DEFAULT 0,
+            std_exchange INTEGER NOT NULL DEFAULT 0,
+            prepa_st_ok INTEGER NOT NULL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(location_id) REFERENCES location(id) ON DELETE SET NULL
@@ -174,6 +212,22 @@ def create_app():
             db.execute("ALTER TABLE item ADD COLUMN st_repair INTEGER NOT NULL DEFAULT 0")
         if not col_exists('item', 'repair_snpa'):
             db.execute("ALTER TABLE item ADD COLUMN repair_snpa INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'pn'):
+            db.execute("ALTER TABLE item ADD COLUMN pn TEXT")
+        if not col_exists('item', 'is_nogo'):
+            db.execute("ALTER TABLE item ADD COLUMN is_nogo INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'is_repair_snpa'):
+            db.execute("ALTER TABLE item ADD COLUMN is_repair_snpa INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'sap_created'):
+            db.execute("ALTER TABLE item ADD COLUMN sap_created INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'pool_ok'):
+            db.execute("ALTER TABLE item ADD COLUMN pool_ok INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'std_exchange'):
+            db.execute("ALTER TABLE item ADD COLUMN std_exchange INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'prepa_st_ok'):
+            db.execute("ALTER TABLE item ADD COLUMN prepa_st_ok INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'hors_gabarit'):
+            db.execute("ALTER TABLE item ADD COLUMN hors_gabarit INTEGER NOT NULL DEFAULT 0")
         db.commit()
 
     # 3) MIGRATION FORCÉE (détection large de l'ancien CHECK) --------------
@@ -197,6 +251,7 @@ def create_app():
         CREATE TABLE item(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sku TEXT NOT NULL,
+            pn TEXT,
             description TEXT,
             photo_path TEXT,
             size TEXT CHECK(size IN ('GRAND','PETIT') OR size IS NULL),
@@ -204,10 +259,17 @@ def create_app():
             active INTEGER NOT NULL DEFAULT 1,
             st_repair INTEGER NOT NULL DEFAULT 0,
             repair_snpa INTEGER NOT NULL DEFAULT 0,
+            hors_gabarit INTEGER NOT NULL DEFAULT 0,
             location_id INTEGER,
             avis_no TEXT,
             order_no TEXT,
             bl_no TEXT,
+            is_nogo INTEGER NOT NULL DEFAULT 0,
+            is_repair_snpa INTEGER NOT NULL DEFAULT 0,
+            sap_created INTEGER NOT NULL DEFAULT 0,
+            pool_ok INTEGER NOT NULL DEFAULT 0,
+            std_exchange INTEGER NOT NULL DEFAULT 0,
+            prepa_st_ok INTEGER NOT NULL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(location_id) REFERENCES location(id) ON DELETE SET NULL
@@ -217,14 +279,15 @@ def create_app():
         # Migration des données + mapping anciens statuts
         db.execute("""
         INSERT INTO item(
-            id, sku, description, photo_path, size,
-            status, active, st_repair, repair_snpa,
+            id, sku, pn, description, photo_path, size,
+            status, active, st_repair, repair_snpa, hors_gabarit,
             location_id, avis_no, order_no, bl_no,
             created_at, updated_at
         )
         SELECT
             id,
             sku,
+            NULL,
             description,
             photo_path,
             size,
@@ -239,6 +302,7 @@ def create_app():
             COALESCE(active,1),
             COALESCE(st_repair,0),
             COALESCE(repair_snpa,0),
+            0,
             location_id,
             avis_no,
             order_no,
@@ -439,8 +503,10 @@ def create_app():
         db=get_db()
         if request.method=='POST':
             sku=(request.form.get('sku') or '').strip(); size=(request.form.get('size') or 'PETIT').upper()
+            pn=(request.form.get('pn') or '').strip() or None
             sous_douane=(request.form.get('sous_douane')=='on'); st_repair=1 if (request.form.get('st_repair')=='on') else 0
             repair_snpa=1 if (request.form.get('repair_snpa')=='on') else 0
+            hors_gabarit=1 if (request.form.get('hors_gabarit')=='on') else 0
             if size not in ('GRAND','PETIT'):
                 flash('Taille requise (GRAND/PETIT)','error'); return redirect(url_for('items'))
             if not sku:
@@ -453,12 +519,12 @@ def create_app():
             status='Attente douane' if sous_douane else 'Attente photo'
             db.execute("""
                 INSERT INTO item(
-                    sku, description, size,
+                    sku, pn, description, size,
                     avis_no, order_no, bl_no,
-                    status, st_repair, repair_snpa,
+                    status, st_repair, repair_snpa, hors_gabarit,
                     active, location_id
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
-                    """, (sku, desc, size, avis, od, bl, status, st_repair, repair_snpa, 1, None))
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    """, (sku, pn, desc, size, avis, od, bl, status, st_repair, repair_snpa, hors_gabarit, 1, None))
             new_id=db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']; db.commit()
             flash(f'Article créé {sku} — statut: {status}','ok'); return redirect(url_for('item_detail', item_id=new_id))
         q=(request.args.get('q') or '').strip(); base_sql="SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.active=1"; params=[]
@@ -685,6 +751,708 @@ def create_app():
         return render_template("manager_dashboard.html", encours=encours)
 
     # -------------------- WORKFLOWS --------------------
+    # 1. RÉCEPTION - Input Client
+    @app.route('/work/reception', methods=['GET', 'POST'])
+    @login_required
+    @role_required('reception', 'admin')
+    def work_reception():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Attente douane'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_reception.html', items=items)
+        
+        # POST: Créer un nouvel item en réception
+        sku = (request.form.get('sku') or '').strip()
+        pn = (request.form.get('pn') or '').strip() or None
+        description = (request.form.get('description') or '').strip()
+        size = (request.form.get('size') or 'PETIT').upper()
+        avis = (request.form.get('avis_no') or '').strip() or None
+        od = (request.form.get('order_no') or '').strip() or None
+        bl = (request.form.get('bl_no') or '').strip() or None
+        st_repair = 1 if (request.form.get('st_repair') == 'on') else 0
+        repair_snpa = 1 if (request.form.get('repair_snpa') == 'on') else 0
+        hors_gabarit = 1 if (request.form.get('hors_gabarit') == 'on') else 0
+        
+        if not sku:
+            flash('SKU requis', 'error')
+            return redirect(url_for('work_reception'))
+        
+        if size not in ('GRAND', 'PETIT'):
+            flash('Taille requise (GRAND/PETIT)', 'error')
+            return redirect(url_for('work_reception'))
+        
+        db.execute("""
+            INSERT INTO item(
+                sku, pn, description, size,
+                avis_no, order_no, bl_no,
+                status, st_repair, repair_snpa, hors_gabarit,
+                active, location_id
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (sku, pn, description, size, avis, od, bl, 'Attente douane', st_repair, repair_snpa, hors_gabarit, 1, None))
+        
+        new_id = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+        db.commit()
+        
+        flash(f'Article créé: {sku} (PN: {pn or "—"}) → Attente douane', 'ok')
+        return redirect(url_for('item_detail', item_id=new_id))
+    
+    # 2. CONTRÔLE DOUANE
+    @app.route('/work/douane', methods=['GET', 'POST'])
+    @login_required
+    @role_required('douane', 'admin')
+    def work_douane():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Attente douane'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_douane.html', items=items)
+    
+    @app.route('/items/<int:item_id>/douane_ok', methods=['POST'])
+    @login_required
+    @role_required('douane', 'admin')
+    def douane_ok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Attente douane':
+            flash('Statut invalide pour douane', 'error')
+            return redirect(url_for('work_douane'))
+        
+        _set_status(item_id, 'Attente réception')
+        _movement(item_id, 'DOUANE_OK', from_id=it['location_id'])
+        flash('Douane OK → Attente réception', 'ok')
+        return redirect(url_for('work_douane'))
+    
+    @app.route('/items/<int:item_id>/douane_nok', methods=['POST'])
+    @login_required
+    @role_required('douane', 'admin')
+    def douane_nok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Attente douane':
+            flash('Statut invalide pour douane', 'error')
+            return redirect(url_for('work_douane'))
+        
+        _movement(item_id, 'DOUANE_NOK', from_id=it['location_id'])
+        flash('Douane NOK → Attente douane (retour)', 'ok')
+        return redirect(url_for('work_douane'))
+    
+    # 3. RÉCEPTION (Contrôle)
+    @app.route('/work/reception_check', methods=['GET', 'POST'])
+    @login_required
+    @role_required('reception', 'admin')
+    def work_reception_check():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Attente réception'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_reception_check.html', items=items)
+    
+    @app.route('/items/<int:item_id>/reception_ok', methods=['POST'])
+    @login_required
+    @role_required('reception', 'admin')
+    def reception_ok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Attente réception':
+            flash('Statut invalide pour réception', 'error')
+            return redirect(url_for('work_reception_check'))
+        
+        _set_status(item_id, 'Poste photo')
+        _movement(item_id, 'RECEPTION_OK', from_id=it['location_id'])
+        flash('Réception OK → Poste photo', 'ok')
+        return redirect(url_for('work_reception_check'))
+    
+    @app.route('/items/<int:item_id>/reception_nok', methods=['POST'])
+    @login_required
+    @role_required('reception', 'admin')
+    def reception_nok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Attente réception':
+            flash('Statut invalide pour réception', 'error')
+            return redirect(url_for('work_reception_check'))
+        
+        _movement(item_id, 'RECEPTION_NOK', from_id=it['location_id'])
+        flash('Réception NOK → Attente réception (retour)', 'ok')
+        return redirect(url_for('work_reception_check'))
+    
+    # 4. POSTE PHOTO
+    @app.route('/work/photo', methods=['GET', 'POST'])
+    @login_required
+    @role_required('photo', 'admin')
+    def work_photo():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Poste photo'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_photo.html', items=items)
+    
+    @app.route('/items/<int:item_id>/photo_ok', methods=['POST'])
+    @login_required
+    @role_required('photo', 'admin')
+    def photo_ok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Poste photo':
+            flash('Statut invalide pour photo', 'error')
+            return redirect(url_for('work_photo'))
+        
+        _set_status(item_id, 'Attente RAC')
+        _movement(item_id, 'PHOTO_OK', from_id=it['location_id'])
+        flash('Photo OK → Attente RAC', 'ok')
+        return redirect(url_for('work_photo'))
+    
+    # 5. ATTENTE RAC / POSTE EMBALLAGE
+    @app.route('/work/rac', methods=['GET', 'POST'])
+    @login_required
+    @role_required('rac', 'admin')
+    def work_rac():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Attente RAC'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_rac.html', items=items)
+    
+    @app.route('/items/<int:item_id>/rac_ok', methods=['POST'])
+    @login_required
+    @role_required('rac', 'admin')
+    def rac_ok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Attente RAC':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_rac'))
+        
+        _set_status(item_id, 'Poste emballage')
+        _movement(item_id, 'RAC_OK', from_id=it['location_id'])
+        flash('RAC OK → Poste emballage', 'ok')
+        return redirect(url_for('work_rac'))
+    
+    # 6. POSTE EMBALLAGE (Décision NOGO + Repair SNPA)
+    @app.route('/work/emballage', methods=['GET', 'POST'])
+    @login_required
+    @role_required('emballage', 'admin')
+    def work_emballage():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Poste emballage'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_emballage.html', items=items)
+    
+    @app.route('/items/<int:item_id>/emballage_nogo', methods=['POST'])
+    @login_required
+    @role_required('emballage', 'admin')
+    def emballage_nogo(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Poste emballage':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_emballage'))
+        
+        db.execute('UPDATE item SET is_nogo=1, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Exp ST Return', item_id))
+        _movement(item_id, 'EMBALLAGE_NOGO', from_id=it['location_id'])
+        db.commit()
+        flash('Article NOGO → Exp ST Return → FIN', 'ok')
+        return redirect(url_for('work_emballage'))
+    
+    @app.route('/items/<int:item_id>/emballage_repair_decision', methods=['POST'])
+    @login_required
+    @role_required('emballage', 'admin')
+    def emballage_repair_decision(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Poste emballage':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_emballage'))
+        
+        is_repair_snpa = request.form.get('is_repair_snpa') == 'on'
+        
+        if is_repair_snpa:
+            db.execute('UPDATE item SET is_repair_snpa=1, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Attente SAP', item_id))
+            next_status = 'Attente SAP'
+        else:
+            db.execute('UPDATE item SET is_repair_snpa=0, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Input ST', item_id))
+            next_status = 'Input ST'
+        
+        _movement(item_id, f'EMBALLAGE_DECISION_{next_status}', from_id=it['location_id'])
+        db.commit()
+        flash(f'Direction: {next_status}', 'ok')
+        return redirect(url_for('work_emballage'))
+    
+    # 7. ATTENTE SAP (Création Avis SAP)
+    @app.route('/work/sap', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin', 'reception')
+    def work_sap():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Attente SAP'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_sap.html', items=items)
+    
+    @app.route('/items/<int:item_id>/sap_created', methods=['POST'])
+    @login_required
+    @role_required('admin', 'reception')
+    def sap_created(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Attente SAP':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_sap'))
+        
+        db.execute('UPDATE item SET sap_created=1, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Réparation SNPA', item_id))
+        _movement(item_id, 'SAP_CREATED', from_id=it['location_id'])
+        db.commit()
+        flash('Avis SAP créé → Réparation SNPA', 'ok')
+        return redirect(url_for('work_sap'))
+    
+    # 8. RÉPARATION SNPA
+    @app.route('/work/repair', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin')
+    def work_repair():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Réparation SNPA'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_repair.html', items=items)
+    
+    @app.route('/items/<int:item_id>/repair_ok', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def repair_ok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Réparation SNPA':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_repair'))
+        
+        _set_status(item_id, 'Attente inspection')
+        _movement(item_id, 'REPAIR_OK', from_id=it['location_id'])
+        flash('Réparation OK → Attente inspection', 'ok')
+        return redirect(url_for('work_repair'))
+    
+    @app.route('/items/<int:item_id>/repair_nogo', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def repair_nogo(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Réparation SNPA':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_repair'))
+        
+        db.execute('UPDATE item SET is_nogo=1, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Exp ST Return', item_id))
+        _movement(item_id, 'REPAIR_NOGO', from_id=it['location_id'])
+        db.commit()
+        flash('Réparation NOGO → Exp ST Return → FIN', 'ok')
+        return redirect(url_for('work_repair'))
+    
+    # 9. INSPECTION + RAC (boucle)
+    @app.route('/work/inspection', methods=['GET', 'POST'])
+    @login_required
+    @role_required('inspection', 'admin')
+    def work_inspection():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status IN ('Attente inspection', 'Attente photo RAC')
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_inspection.html', items=items)
+    
+    @app.route('/items/<int:item_id>/inspection_ok', methods=['POST'])
+    @login_required
+    @role_required('inspection', 'admin')
+    def inspection_ok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] not in ('Attente inspection', 'Attente photo RAC'):
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_inspection'))
+        
+        _set_status(item_id, 'Pool')
+        _movement(item_id, 'INSPECTION_OK', from_id=it['location_id'])
+        flash('Inspection OK → Pool', 'ok')
+        return redirect(url_for('work_inspection'))
+    
+    @app.route('/items/<int:item_id>/inspection_nok', methods=['POST'])
+    @login_required
+    @role_required('inspection', 'admin')
+    def inspection_nok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] not in ('Attente inspection', 'Attente photo RAC'):
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_inspection'))
+        
+        _set_status(item_id, 'Attente photo RAC')
+        _movement(item_id, 'INSPECTION_NOK', from_id=it['location_id'])
+        flash('Inspection NOK → Att Photo RAC', 'ok')
+        return redirect(url_for('work_inspection'))
+    
+    @app.route('/items/<int:item_id>/rac_retry_ok', methods=['POST'])
+    @login_required
+    @role_required('rac', 'admin')
+    def rac_retry_ok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Attente photo RAC':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_rac'))
+        
+        _set_status(item_id, 'Exp Client')
+        _movement(item_id, 'RAC_RETRY_OK', from_id=it['location_id'])
+        db.commit()
+        flash('RAC Retry OK → Exp Client → FIN', 'ok')
+        return redirect(url_for('work_rac'))
+    
+    @app.route('/items/<int:item_id>/rac_retry_nok', methods=['POST'])
+    @login_required
+    @role_required('rac', 'admin')
+    def rac_retry_nok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Attente photo RAC':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_rac'))
+        
+        _set_status(item_id, 'Attente inspection')
+        _movement(item_id, 'RAC_RETRY_NOK', from_id=it['location_id'])
+        flash('RAC Retry NOK → Re-inspection', 'ok')
+        return redirect(url_for('work_rac'))
+    
+    # 10. POOL (Décision Pool / Prison)
+    @app.route('/work/pool', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin')
+    def work_pool():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Pool'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_pool.html', items=items)
+    
+    @app.route('/items/<int:item_id>/pool_yes', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def pool_yes(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Pool':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_pool'))
+        
+        db.execute('UPDATE item SET pool_ok=1, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Kardex Input', item_id))
+        _movement(item_id, 'POOL_YES', from_id=it['location_id'])
+        db.commit()
+        flash('Pool OUI → Kardex Input', 'ok')
+        return redirect(url_for('work_pool'))
+    
+    @app.route('/items/<int:item_id>/pool_no', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def pool_no(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Pool':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_pool'))
+        
+        _set_status(item_id, 'Prison')
+        _movement(item_id, 'POOL_NO', from_id=it['location_id'])
+        flash('Pool NON → Prison', 'ok')
+        return redirect(url_for('work_pool'))
+    
+    # 11. PRISON (Suppression / Retour Inspection)
+    @app.route('/work/prison', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin')
+    def work_prison():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Prison'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_prison.html', items=items)
+    
+    @app.route('/items/<int:item_id>/prison_delete', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def prison_delete(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Prison':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_prison'))
+        
+        log_delete(item_id, user=getattr(current_user, 'username', None))
+        flash('Item supprimé (Prison) → FIN', 'ok')
+        return redirect(url_for('work_prison'))
+    
+    @app.route('/items/<int:item_id>/prison_retry', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def prison_retry(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Prison':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_prison'))
+        
+        _set_status(item_id, 'Attente inspection')
+        _movement(item_id, 'PRISON_RETRY', from_id=it['location_id'])
+        flash('Prison Retry → Att Inspection', 'ok')
+        return redirect(url_for('work_prison'))
+    
+    # 12. KARDEX & EXPEDITION
+    @app.route('/work/kardex', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin')
+    def work_kardex():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status IN ('Kardex Input', 'Préparation ST', 'Kardex Output')
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_kardex.html', items=items)
+    
+    @app.route('/items/<int:item_id>/kardex_std_exchange', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def kardex_std_exchange(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Kardex Input':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_kardex'))
+        
+        is_std_exchange = request.form.get('is_std_exchange') == 'on'
+        
+        if is_std_exchange:
+            db.execute('UPDATE item SET std_exchange=1, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Exp Externe', item_id))
+            next_status = 'Exp Externe'
+        else:
+            db.execute('UPDATE item SET std_exchange=0, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Préparation ST', item_id))
+            next_status = 'Préparation ST'
+        
+        _movement(item_id, f'KARDEX_DECISION_{next_status}', from_id=it['location_id'])
+        db.commit()
+        flash(f'Direction: {next_status}', 'ok')
+        return redirect(url_for('work_kardex'))
+    
+    @app.route('/items/<int:item_id>/kardex_to_output', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def kardex_to_output(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Kardex Input':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_kardex'))
+        
+        _set_status(item_id, 'Kardex Output')
+        _movement(item_id, 'KARDEX_INPUT_TO_OUTPUT', from_id=it['location_id'])
+        flash('Kardex Input → Kardex Output', 'ok')
+        return redirect(url_for('work_kardex'))
+    
+    @app.route('/items/<int:item_id>/prepa_st_decision', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def prepa_st_decision(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Préparation ST':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_kardex'))
+        
+        prepa_ok = request.form.get('prepa_ok') == 'on'
+        
+        if prepa_ok:
+            db.execute('UPDATE item SET prepa_st_ok=1, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Appel FO', item_id))
+            next_status = 'Appel FO'
+        else:
+            db.execute('UPDATE item SET prepa_st_ok=0, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Kardex Output', item_id))
+            next_status = 'Kardex Output'
+        
+        _movement(item_id, f'PREPA_ST_DECISION_{next_status}', from_id=it['location_id'])
+        db.commit()
+        flash(f'Direction: {next_status}', 'ok')
+        return redirect(url_for('work_kardex'))
+    
+    @app.route('/items/<int:item_id>/appel_fo_done', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def appel_fo_done(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Appel FO':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_kardex'))
+        
+        _set_status(item_id, 'Kardex Output')
+        _movement(item_id, 'APPEL_FO_DONE', from_id=it['location_id'])
+        flash('Appel FO → Kardex Output', 'ok')
+        return redirect(url_for('work_kardex'))
+    
+    @app.route('/items/<int:item_id>/kardex_output_final', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def kardex_output_final(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] not in ('Kardex Output', 'Exp Externe'):
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_kardex'))
+        
+        _set_status(item_id, 'Dossier Induction')
+        _movement(item_id, 'KARDEX_FINAL', from_id=it['location_id'])
+        
+        # Finalisation
+        db.execute('UPDATE item SET status=?, active=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('STOCK', item_id))
+        db.commit()
+        
+        flash('Item finalisé → STOCK → FIN', 'ok')
+        return redirect(url_for('work_kardex'))
+    
+    # INPUT ST (Direct path for standard items)
+    @app.route('/work/input_st', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin')
+    def work_input_st():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Input ST'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_input_st.html', items=items)
+    
+    @app.route('/items/<int:item_id>/input_st_done', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def input_st_done(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Input ST':
+            flash('Statut invalide', 'error')
+            return redirect(url_for('work_input_st'))
+        
+        _set_status(item_id, 'Attente inspection')
+        _movement(item_id, 'INPUT_ST_DONE', from_id=it['location_id'])
+        flash('Input ST done → Attente inspection', 'ok')
+        return redirect(url_for('work_input_st'))
+    
     # DOUANE
     @app.route('/work/douane')
     @login_required
@@ -698,20 +1466,6 @@ def create_app():
         """).fetchall()
         return render_template('work_douane.html', items=rows)
 
-    @app.route('/items/<int:item_id>/douane_out', methods=['POST'])
-    @login_required
-    @role_required('douane' , 'admin')
-    def douane_out(item_id):
-        db=get_db(); it=item_by_id(item_id)
-        if not it: abort(404)
-        if it['status']!='Attente douane':
-            flash("L'item n'est pas en attente douane.", 'error'); return redirect(url_for('work_douane'))
-        db.execute("UPDATE item SET status='Attente photo', updated_at=CURRENT_TIMESTAMP WHERE id=?",(item_id,))
-        db.execute("""
-            INSERT INTO movement(item_id, from_location_id, to_location_id, action, user)
-            VALUES (?,?,?,?,?)
-        """, (item_id, it['location_id'], None, 'DOUANE_OUT', getattr(current_user,'username',None)))
-        db.commit(); flash('Sortie de douane → Attente photo.','ok'); return redirect(url_for('work_douane'))
 
     # PHOTO
     @app.route("/work/photo", methods=["GET", "POST"])

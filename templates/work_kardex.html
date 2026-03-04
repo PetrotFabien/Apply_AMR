@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}📦 Gestion Stock (Kardex){% endblock %}
+
+{% block content %}
+
+<h2 style="margin-bottom:1rem;">📦 Gestion Kardex – Phase Finale</h2>
+
+<p class="muted" style="margin-bottom:1.4rem;">
+    Articles en phase <strong>Kardex & Expédition</strong>.<br>
+    Chemins: Kardex Input → Std Exchange → Prépa ST → Appel FO → Kardex Output → Dossier
+</p>
+
+<div class="cards">
+    {% for it in items %}
+    <div class="card">
+        <div class="row" style="justify-content:space-between; align-items:center;">
+            <h3 style="margin:0;">{{ it.avis_no or it.sku }}</h3>
+            <span class="badge">{{ it.status }}</span>
+        </div>
+        
+        <div style="margin:.8rem 0; border-top:1px solid var(--border); padding-top:.8rem;">
+            <p class="muted"><span class="badge">PN: {{ it.pn or '—' }}</span> <span class="badge">{{ it.size }}</span></p>
+        </div>
+        
+        <div class="row-right" style="gap:.4rem; margin-top:1rem; flex-wrap:wrap;">
+            
+            {% if it.status == 'Kardex Input' %}
+                <form method="post" action="{{ url_for('kardex_std_exchange', item_id=it.id) }}" style="display:inline;">
+                    <label style="display:inline-flex; gap:.3rem;">
+                        <input type="checkbox" name="is_std_exchange">
+                        <button class="btn btn-info" type="submit">Échange Std ?</button>
+                    </label>
+                </form>
+                <form method="post" action="{{ url_for('kardex_to_output', item_id=it.id) }}" style="display:inline;">
+                    <button class="btn btn-primary" type="submit">→ Output</button>
+                </form>
+            
+            {% elif it.status == 'Préparation ST' %}
+                <form method="post" action="{{ url_for('prepa_st_decision', item_id=it.id) }}" style="display:inline;">
+                    <label style="display:inline-flex; gap:.3rem;">
+                        <input type="checkbox" name="prepa_ok">
+                        <button class="btn btn-success" type="submit">Prepa OK ?</button>
+                    </label>
+                </form>
+            
+            {% elif it.status == 'Appel FO' %}
+                <form method="post" action="{{ url_for('appel_fo_done', item_id=it.id) }}" style="display:inline;">
+                    <button class="btn btn-success" type="submit">✅ FO Done → Output</button>
+                </form>
+            
+            {% elif it.status == 'Kardex Output' or it.status == 'Exp Externe' %}
+                <form method="post" action="{{ url_for('kardex_output_final', item_id=it.id) }}" style="display:inline;">
+                    <button class="btn btn-success" type="submit">✅ Finaliser → STOCK</button>
+                </form>
+            {% endif %}
+            
+            <a class="btn" href="{{ url_for('item_detail', item_id=it.id) }}">📄</a>
+        </div>
+    </div>
+    {% else %}
+        <div class="card"><em>Aucun article en Kardex.</em></div>
+    {% endfor %}
+</div>
+
+{% endblock %}

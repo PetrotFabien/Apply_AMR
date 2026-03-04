@@ -24,7 +24,7 @@
     <div class="card">
 
         <div class="row" style="justify-content:space-between;align-items:center;">
-            <h3 style="margin:0;">SKU {{ it['sku'] }}</h3>
+            <h3 style="margin:0;">{{ it.avis_no or it.sku }}</h3>
             <span class="badge">Attente expédition client</span>
         </div>
 
@@ -65,7 +65,7 @@
     <div class="card">
 
         <div class="row" style="justify-content:space-between;align-items:center;">
-            <h3 style="margin:0;">SKU {{ it['sku'] }}</h3>
+            <h3 style="margin:0;">{{ it.avis_no or it.sku }}</h3>
             <span class="badge">Attente expédition ST</span>
         </div>
 
@@ -106,7 +106,7 @@
     <div class="card">
 
         <div class="row" style="justify-content:space-between;align-items:center;">
-            <h3 style="margin:0;">SKU {{ it['sku'] }}</h3>
+            <h3 style="margin:0;">{{ it.avis_no or it.sku }}</h3>
             <span class="badge">Attente départ T2</span>
         </div>
 

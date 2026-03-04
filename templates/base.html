@@ -26,12 +26,19 @@
     <span class="div-b">|</span>
 
     <!-- Flux opérationnel -->
+    <a href="{{ url_for('work_reception') }}" title="Réception">📥</a>
     <a href="{{ url_for('work_douane') }}" title="Douane">🛃</a>
+    <a href="{{ url_for('work_reception_check') }}" title="Contrôle Réception">✅</a>
     <a href="{{ url_for('work_photo') }}" title="Photo">📸</a>
-    <a href="{{ url_for('work_inspection') }}" title="Inspection">🔍</a>
     <a href="{{ url_for('work_rac') }}" title="RAC">🧩</a>
     <a href="{{ url_for('work_emballage') }}" title="Emballage">📦</a>
-    <a href="{{ url_for('work_expe') }}" title="Expédition">🚚</a>
+    <a href="{{ url_for('work_sap') }}" title="SAP">📝</a>
+    <a href="{{ url_for('work_repair') }}" title="Repair">🔧</a>
+    <a href="{{ url_for('work_inspection') }}" title="Inspection">🔍</a>
+    <a href="{{ url_for('work_pool') }}" title="Pool">🎯</a>
+    <a href="{{ url_for('work_prison') }}" title="Prison">🚫</a>
+    <a href="{{ url_for('work_kardex') }}" title="Kardex">📦</a>
+    <a href="{{ url_for('work_input_st') }}" title="Input ST">📁</a>
     <a href="{{ url_for('Global_WIP') }}" title="Global WIP">📊</a>
 
     <!-- Archives (RBAC) -->

@@ -19,7 +19,7 @@
 
         <!-- HEADER -->
         <div class="row" style="justify-content:space-between;align-items:center;">
-            <h3 style="margin:0;">SKU {{ it.sku }}</h3>
+            <h3 style="margin:0;">{{ it.avis_no or it.sku }}</h3>
             <span class="badge">Attente photo</span>
         </div>
 
@@ -28,6 +28,7 @@
             <span class="badge">Taille : {{ it.size }}</span>
             <span class="badge">StRepair : {{ '1' if it.st_repair else '0' }}</span>
             <span class="badge">RepairSNPA : {{ '1' if it.repair_snpa else '0' }}</span>
+            <span class="badge">HG : {{ '1' if it.hors_gabarit else '0' }}</span>
             <span class="badge">Empl : {{ it.loc_code or '—' }}</span>
         </p>
 

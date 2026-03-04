@@ -4,7 +4,7 @@
 {% block content %}
 
 <h2 style="margin-bottom:1rem;">
-    📄 Fiche Article — <strong>{{ it.sku }}</strong>
+    📄 Fiche Article — <strong>{{ it.avis_no or it.sku }}</strong>
 </h2>
 
 <div class="grid2">
@@ -14,7 +14,8 @@
         <h3>🔎 Informations générales</h3>
 
         <p><strong>ID :</strong> {{ it.id }}</p>
-        <p><strong>SKU :</strong> {{ it.sku }}</p>
+        <p><strong>Référence :</strong> {{ it.avis_no or it.sku }}</p>
+        <p><strong>PN :</strong> {{ it.pn or "—" }}</p>
         <p><strong>Description :</strong><br>{{ it.description or "—" }}</p>
         <p><strong>Taille :</strong> {{ it.size or "—" }}</p>
 
@@ -24,6 +25,10 @@
 
         <p><strong>Repair SNPA :</strong>
             {% if it.repair_snpa %}<span class="badge">Oui</span>{% else %}<span class="badge">Non</span>{% endif %}
+        </p>
+
+        <p><strong>Hors gabarit :</strong>
+            {% if it.hors_gabarit %}<span class="badge">Oui</span>{% else %}<span class="badge">Non</span>{% endif %}
         </p>
 
         <p><strong>Statut :</strong> <span class="badge">{{ it.status }}</span></p>
