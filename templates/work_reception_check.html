@@ -7,7 +7,8 @@
 
 <p class="muted" style="margin-bottom:1.4rem;">
     Articles en <strong>Attente réception</strong>.<br>
-    Décision: <strong style="color:#28a745;">OK</strong> → Poste photo | <strong style="color:#dc3545;">NOK</strong> → Retour
+    Décision: <strong style="color:#28a745;">OK</strong> → Poste photo | <strong style="color:#dc3545;">NOK</strong> →
+    Retour
 </p>
 
 <div class="cards">
@@ -17,12 +18,13 @@
             <h3 style="margin:0;">{{ it.avis_no or it.sku }}</h3>
             <span class="badge">Attente réception</span>
         </div>
-        
+
         <div style="margin:.8rem 0; border-top:1px solid var(--border); padding-top:.8rem;">
             {% if it.description %}<p>{{ it.description }}</p>{% endif %}
-            <p class="muted"><span class="badge">{{ it.size }}</span> <span class="badge">PN: {{ it.pn or '—' }}</span></p>
+            <p class="muted"><span class="badge">{{ it.size }}</span> <span class="badge">PN: {{ it.pn or '—' }}</span>
+            </p>
         </div>
-        
+
         <div class="row-right" style="gap:.6rem; margin-top:1rem;">
             <form method="post" action="{{ url_for('reception_ok', item_id=it.id) }}" style="display:inline;">
                 <button class="btn btn-success" type="submit">✅ OK → Photo</button>
@@ -34,7 +36,7 @@
         </div>
     </div>
     {% else %}
-        <div class="card"><em>Aucun article en attente réception.</em></div>
+    <div class="card"><em>Aucun article en attente réception.</em></div>
     {% endfor %}
 </div>
 

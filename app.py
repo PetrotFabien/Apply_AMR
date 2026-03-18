@@ -44,6 +44,10 @@ ROLE_PERMISSIONS = {
     "work_input_st": ["admin"],
     "work_expe": ["admin", "expedition"],
 
+    # Workflows & Visualization
+    "return_st_workflow": ["admin", "manager"],
+    "Global_WIP": ["admin", "manager"],
+
     # Admin
     "admin_users": ["admin"],
 
@@ -1452,270 +1456,72 @@ def create_app():
         _movement(item_id, 'INPUT_ST_DONE', from_id=it['location_id'])
         flash('Input ST done → Attente inspection', 'ok')
         return redirect(url_for('work_input_st'))
-    
-    # DOUANE
-    @app.route('/work/douane')
-    @login_required
-    @role_required('douane' , 'admin')
-    def work_douane():
-        rows=get_db().execute("""
-            SELECT i.*, l.code AS loc_code
-              FROM item i LEFT JOIN location l ON i.location_id=l.id
-             WHERE i.active=1 AND i.status='Attente douane'
-             ORDER BY i.created_at ASC
-        """).fetchall()
-        return render_template('work_douane.html', items=rows)
 
-
-    # PHOTO
-    @app.route("/work/photo", methods=["GET", "POST"])
-    @login_required
-    @role_required('photo', 'admin')
-    def work_photo():
-        db = get_db()
-
-        # Affichage normal
-        if request.method == "GET":
-            items = db.execute("""
-                SELECT * FROM item 
-                WHERE status='Attente photo' AND active=1
-                ORDER BY created_at ASC
-            """).fetchall()
-            return render_template("work_photo.html", items=items)
-
-        # Action PHOTO OK -> redirection vers modale
-        item_id = request.form.get("item_id")
-        return redirect(url_for("work_photo", modal="placement", id=item_id))
-
-    @app.route('/work/photo/<int:item_id>/ok', methods=['POST'])
-    @login_required
-    @role_required('photo' , 'admin')
-    def photo_ok(item_id):
-        it=item_by_id(item_id); _ensure_active(it)
-        if it['status']!='Attente photo':
-            flash('Statut invalide pour Photo OK','error'); return redirect(url_for('work_photo'))
-        return redirect(url_for("work_photo", modal="placement", id=item_id))
-
-    @app.route("/work/photo/place/shelf", methods=["POST"])
-    @login_required
-    @role_required('photo' , 'admin')
-    def photo_place_shelf():
-        db = get_db()
-        item_id = request.form["item_id"]
-        level = request.form["level"]
-        plate = request.form["plate"]
-
-        db.execute("UPDATE item SET loc_code=?, status='ATTENTE_INSPECTION', updated_at=CURRENT_TIMESTAMP WHERE id=?",
-                (f"E{level}{plate}", item_id))
-        db.commit()
-
-        return redirect(url_for("work_photo"))
-
-
-    @app.route("/work/photo/place/amr", methods=["POST"])
-    @login_required
-    @role_required('photo' , 'admin')
-    def photo_place_amr():
-        db = get_db()
-        item_id = request.form["item_id"]
-        size = request.form["amr_size"]
-
-        # Emplacement AMR fixe / dynamique :
-        loc = "SOLG1" if size == "GRAND" else "SOLP1"
-
-        db.execute("UPDATE item SET loc_code=?, status='ATTENTE_INSPECTION', updated_at=CURRENT_TIMESTAMP WHERE id=?",
-                (loc, item_id))
-        db.commit()
-
-        return redirect(url_for("work_photo"))
-
-    # INSPECTION
-    @app.route("/work/inspection", methods=["GET", "POST"])
-    @login_required
-    @role_required("inspection", "admin")
-    def work_inspection():
-        db = get_db()
-
-        # Affichage normal
-        if request.method == "GET":
-            items = db.execute("""
-                SELECT * FROM item 
-                WHERE status='ATTENTE_INSPECTION' AND active=1
-                ORDER BY created_at ASC
-            """).fetchall()
-            return render_template("work_inspection.html", items=items)
-
-        # OK -> demande Pool
-        item_id = request.form.get("item_id")
-        return redirect(url_for("work_inspection", modal="pool", id=item_id))
-
-    @app.route('/work/inspection/<int:item_id>/nok', methods=['POST'])
-    @login_required
-    @role_required('inspection' , 'admin')
-    def inspection_nok(item_id):
-        it=item_by_id(item_id); _ensure_active(it)
-        if it['status']!='Attente inspection': flash('Statut invalide','error'); return redirect(url_for('work_inspection'))
-        _movement(item_id,'INSPECTION_NOK'); _set_status(item_id,'Prison'); flash('Inspection NOK → Prison','ok')
-        return redirect(url_for('work_inspection'))
-
-    @app.route('/work/inspection/<int:item_id>/ok', methods=['POST'])
-    @login_required
-    @role_required('inspection' , 'admin')
-    def inspection_ok(item_id):
-        it=item_by_id(item_id); _ensure_active(it)
-        if it['status']!='Attente inspection': flash('Statut invalide','error'); return redirect(url_for('work_inspection'))
-        return redirect(url_for("work_inspection", modal="pool", id=item_id))
-
-    @app.route("/work/inspection/pool", methods=["POST"])
-    @login_required
-    @role_required("inspection", "admin")
-    def inspection_pool_decision():
-        db = get_db()
-        item_id = request.form["item_id"]
-        choice = request.form["choice"]
-
-        if choice == "oui":  # suppression logique = Pool
-            db.execute("""
-                UPDATE item SET active=0, status='ARCHIVE', updated_at=CURRENT_TIMESTAMP
-                WHERE id=?
-            """, (item_id,))
-        else:
-            db.execute("""
-                UPDATE item SET status='ATTENTE_EMBALLAGE', updated_at=CURRENT_TIMESTAMP
-                WHERE id=?
-            """, (item_id,))
-
-        db.commit()
-        return redirect(url_for("work_inspection"))
-
-    # RAC
-    @app.route('/work/rac')
-    @login_required
-    @role_required('rac' , 'admin')
-    def work_rac():
-        rows=get_db().execute("""
-            SELECT i.*, l.code AS loc_code
-              FROM item i LEFT JOIN location l ON i.location_id=l.id
-             WHERE i.active=1 AND i.status='Attente RAC'
-             ORDER BY i.created_at ASC
-        """).fetchall()
-        return render_template('work_rac.html', items=rows)
-
-    @app.route('/work/rac/<int:item_id>/ok', methods=['POST'])
-    @login_required
-    @role_required('rac', 'admin')
-    def rac_ok(item_id):
-        it=item_by_id(item_id); _ensure_active(it)
-        if it['status']!='Attente RAC': flash('Statut invalide','error'); return redirect(url_for('work_rac'))
-        _movement(item_id,'RAC_OK'); _set_status(item_id,'Attente emballage'); flash('RAC OK → Attente emballage','ok')
-        return redirect(url_for('work_rac'))
-
-    @app.route('/work/rac/<int:item_id>/nok', methods=['POST'])
-    @login_required
-    @role_required('rac', 'admin')
-    def rac_nok(item_id):
-        it=item_by_id(item_id); _ensure_active(it)
-        if it['status']!='Attente RAC': flash('Statut invalide','error'); return redirect(url_for('work_rac'))
-        _movement(item_id,'RAC_NOK'); _set_status(item_id,'Prison'); flash('RAC NOK → Prison','ok')
-        return redirect(url_for('work_rac'))
-
-    # EMBALLAGE
-    @app.route("/work/emballage", methods=["GET", "POST"])
-    @login_required
-    @role_required("emballage", "admin")
-    def work_emballage():
-        db = get_db()
-
-        # Affichage normal
-        if request.method == "GET":
-            items = db.execute("""
-                SELECT * FROM item
-                WHERE status='ATTENTE_EMBALLAGE' AND active=1
-                ORDER BY created_at ASC
-            """).fetchall()
-        return render_template("work_emballage.html", items=items)
-
-        # POST = Emballage terminé
-        item_id = request.form["item_id"]
-
-        it = db.execute("SELECT st_repair, repair_snpa FROM item WHERE id=?", (item_id,)).fetchone()
-
-        # Si Repair → expédition directe
-        if it["st_repair"] or it["repair_snpa"]:
-            db.execute("""
-                UPDATE item SET status='ATTENTE_EXPE_CLIENT', updated_at=CURRENT_TIMESTAMP
-                WHERE id=?
-            """, (item_id,))
-            db.commit()
-        return redirect(url_for("work_emballage"))
-
-        # Sinon → route à choisir
-        return redirect(url_for("work_emballage", modal="route", id=item_id))
-
-    @app.route('/work/emballage/<int:item_id>/done', methods=['POST'])
-    @login_required
-    @role_required('emballage' , 'admin')
-    def emballage_done(item_id):
-        it=item_by_id(item_id); _ensure_active(it)
-        if it['status']!='Attente emballage': flash('Statut invalide','error'); return redirect(url_for('work_emballage'))
-        _movement(item_id,'EMBALLAGE_OK')
-        if it['st_repair']==1 or it['repair_snpa']==1:
-            _set_status(item_id,'Attente expédition client'); flash('Emballage → Attente expédition client','ok'); return redirect(url_for('work_emballage'))
-        return redirect(url_for("work_emballage", modal="route", id=item_id))
-
-    @app.route("/work/emballage/route", methods=["POST"])
-    @login_required
-    @role_required("emballage", "admin")
-    def emballage_choose_route():
-        db = get_db()
-        item_id = request.form["item_id"]
-        route = request.form["route"]
-
-        if route == "ST":
-            status = "ATTENTE_EXPE_ST"
-        else:
-            status = "ATTENTE_EXPE_T2"
-
-        db.execute("""
-            UPDATE item SET status=?, updated_at=CURRENT_TIMESTAMP
-            WHERE id=?
-        """, (status, item_id))
-        db.commit()
-
-        return redirect(url_for("work_emballage"))
-    
     # EXPÉDITION
-    @app.route('/work/expe')
+    @app.route('/work/expe', methods=['GET', 'POST'])
     @login_required
-    @role_required('emballage','admin')
+    @role_required('admin', 'expedition')
     def work_expe():
-        db=get_db()
-        client=db.execute("""
-            SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id
-             WHERE i.active=1 AND i.status='Attente expédition client' ORDER BY i.created_at ASC
-        """).fetchall()
-        st=db.execute("""
-            SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id
-             WHERE i.active=1 AND i.status='Attente expédition ST' ORDER BY i.created_at ASC
-        """).fetchall()
-        t2=db.execute("""
-            SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id
-             WHERE i.active=1 AND i.status='Attente départ T2' ORDER BY i.created_at ASC
-        """).fetchall()
-        return render_template('work_expe.html', client=client, st=st, t2=t2)
+        db = get_db()
+        
+        if request.method == 'GET':
+            client = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Attente expédition client'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            st = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Attente expédition ST'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            t2 = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Attente départ T2'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return render_template('work_expe.html', client=client, st=st, t2=t2)
 
-    @app.route('/work/expe/<int:item_id>/ship', methods=['POST'])
+    @app.route('/items/<int:item_id>/expe_ship', methods=['POST'])
     @login_required
-    @role_required('emballage', 'admin')
+    @role_required('admin', 'expedition')
     def expe_ship(item_id):
-        kind=(request.form.get('kind') or 'client')
-        it=item_by_id(item_id); _ensure_active(it)
-        valid={'client':'Attente expédition client','st':'Attente expédition ST','t2':'Attente départ T2'}
-        if it['status']!=valid.get(kind): flash('Statut invalide pour expédition','error'); return redirect(url_for('work_expe'))
-        _movement(item_id, f'EXPE_{kind.upper()}'); log_delete(item_id, user=getattr(current_user,'username',None))
-        flash('Expédition effectuée → Item supprimé (logique)','ok'); return redirect(url_for('work_expe'))
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        
+        kind = (request.form.get('kind') or 'client')
+        valid = {
+            'client': 'Attente expédition client',
+            'st': 'Attente expédition ST',
+            't2': 'Attente départ T2'
+        }
+        
+        if it['status'] != valid.get(kind):
+            flash('Statut invalide pour expédition', 'error')
+            return redirect(url_for('work_expe'))
+        
+        _movement(item_id, f'EXPE_{kind.upper()}', from_id=it['location_id'])
+        log_delete(item_id, user=getattr(current_user, 'username', None))
+        db.execute('UPDATE item SET active=0, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('ARCHIVE', item_id))
+        db.commit()
+        flash('Expédition effectuée → Item supprimé (logique)', 'ok')
+        return redirect(url_for('work_expe'))
 
-# ===================== ROBOT MiR ===============================
+    # ===================== WORKFLOWS & VISUALIZATION ===============================
+    
+    @app.route('/workflow/return-st')
+    @login_required
+    @role_required('admin', 'manager')
+    def return_st_workflow():
+        """Display the Return ST supply chain workflow diagram"""
+        return render_template('return_st_workflow.html')
+
+    # ===================== ROBOT MiR ===============================
     from mir_client import MiRClient
 
     @app.route('/robot/status')

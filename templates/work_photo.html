@@ -60,68 +60,70 @@
 {% block modal %}
 
 {% if request.args.get('modal') == 'placement' and request.args.get('id') %}
-    {% set mid = request.args.get('id') %}
+{% set mid = request.args.get('id') %}
 
-    {% set body %}
+{% set body %}
 
-    <div class="grid2">
+<div class="grid2">
 
-        <!-- ================= ÉTAGÈRE ================= -->
-        <div class="card">
-            <h4>Étagère</h4>
+    <!-- ================= ÉTAGÈRE ================= -->
+    <div class="card">
+        <h4>Étagère</h4>
 
-            <form method="post" action="{{ url_for('photo_place_shelf') }}" onsubmit="disableOnSubmit(this)">
-                <input type="hidden" name="item_id" value="{{ mid }}">
+        <form method="post" action="{{ url_for('photo_place_shelf') }}" onsubmit="disableOnSubmit(this)">
+            <input type="hidden" name="item_id" value="{{ mid }}">
 
-                <label>Niveau</label>
-                <select name="level">
-                    <option value="1">1 (Encours)</option>
-                    <option value="2">2 (Encours)</option>
-                    <option value="3">3 (NOGO)</option>
-                </select>
+            <label>Niveau</label>
+            <select name="level">
+                <option value="1">1 (Encours)</option>
+                <option value="2">2 (Encours)</option>
+                <option value="3">3 (NOGO)</option>
+            </select>
 
-                <label style="margin-top:.6rem;">Plateau</label>
-                <select name="plate">
-                    <option>A</option><option>B</option>
-                    <option>C</option><option>D</option>
-                </select>
+            <label style="margin-top:.6rem;">Plateau</label>
+            <select name="plate">
+                <option>A</option>
+                <option>B</option>
+                <option>C</option>
+                <option>D</option>
+            </select>
 
-                <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
-                    Placer étagère
-                </button>
-            </form>
-        </div>
-
-
-
-        <!-- ================= SOL (AMR) ================= -->
-        <div class="card">
-            <h4>SOL (AMR)</h4>
-
-            <form method="post" action="{{ url_for('photo_place_amr') }}" onsubmit="disableOnSubmit(this)">
-                <input type="hidden" name="item_id" value="{{ mid }}">
-
-                <label>Chariot</label>
-                <select name="amr_size">
-                    <option value="PETIT">PETIT</option>
-                    <option value="GRAND">GRAND</option>
-                </select>
-
-                <button class="btn btn-ok" type="submit" style="margin-top:1rem;">
-                    Placer AMR
-                </button>
-            </form>
-        </div>
-
+            <button class="btn btn-primary" type="submit" style="margin-top:1rem;">
+                Placer étagère
+            </button>
+        </form>
     </div>
 
-    {% endset %}
 
-    {{ modal(
-        title="Placement obligatoire",
-        body_html=body,
-        footer_html="<button class='btn btn-ghost' onclick='closeGlobalModal()'>Annuler</button>"
-    ) }}
+
+    <!-- ================= SOL (AMR) ================= -->
+    <div class="card">
+        <h4>SOL (AMR)</h4>
+
+        <form method="post" action="{{ url_for('photo_place_amr') }}" onsubmit="disableOnSubmit(this)">
+            <input type="hidden" name="item_id" value="{{ mid }}">
+
+            <label>Chariot</label>
+            <select name="amr_size">
+                <option value="PETIT">PETIT</option>
+                <option value="GRAND">GRAND</option>
+            </select>
+
+            <button class="btn btn-ok" type="submit" style="margin-top:1rem;">
+                Placer AMR
+            </button>
+        </form>
+    </div>
+
+</div>
+
+{% endset %}
+
+{{ modal(
+title="Placement obligatoire",
+body_html=body,
+footer_html="<button class='btn btn-ghost' onclick='closeGlobalModal()'>Annuler</button>"
+) }}
 
 {% endif %}
 

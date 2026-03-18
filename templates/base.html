@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="fr">
+
 <head>
   <meta charset="utf-8">
   <title>{% block title %}Raspi Stock – Thème B{% endblock %}</title>
@@ -13,101 +14,103 @@
 
 <body>
 
-<!-- ========== HEADER / TOPBAR ========== -->
-<header class="topbar-b">
-  <div class="logo-b">📦 RaspiStock</div>
+  <!-- ========== HEADER / TOPBAR ========== -->
+  <header class="topbar-b">
+    <div class="logo-b">📦 RaspiStock</div>
 
-  <nav class="menu-b">
-    <!-- Accès universels -->
-    <a href="{{ url_for('index') }}" title="Accueil">🏠</a>
-    <a href="{{ url_for('items') }}" title="Articles">📦</a>
-    <a href="{{ url_for('locations') }}" title="Emplacements">📍</a>
+    <nav class="menu-b">
+      <!-- Accès universels -->
+      <a href="{{ url_for('index') }}" title="Accueil">🏠</a>
+      <a href="{{ url_for('items') }}" title="Articles">📦</a>
+      <a href="{{ url_for('locations') }}" title="Emplacements">📍</a>
 
-    <span class="div-b">|</span>
+      <span class="div-b">|</span>
 
-    <!-- Flux opérationnel -->
-    <a href="{{ url_for('work_reception') }}" title="Réception">📥</a>
-    <a href="{{ url_for('work_douane') }}" title="Douane">🛃</a>
-    <a href="{{ url_for('work_reception_check') }}" title="Contrôle Réception">✅</a>
-    <a href="{{ url_for('work_photo') }}" title="Photo">📸</a>
-    <a href="{{ url_for('work_rac') }}" title="RAC">🧩</a>
-    <a href="{{ url_for('work_emballage') }}" title="Emballage">📦</a>
-    <a href="{{ url_for('work_sap') }}" title="SAP">📝</a>
-    <a href="{{ url_for('work_repair') }}" title="Repair">🔧</a>
-    <a href="{{ url_for('work_inspection') }}" title="Inspection">🔍</a>
-    <a href="{{ url_for('work_pool') }}" title="Pool">🎯</a>
-    <a href="{{ url_for('work_prison') }}" title="Prison">🚫</a>
-    <a href="{{ url_for('work_kardex') }}" title="Kardex">📦</a>
-    <a href="{{ url_for('work_input_st') }}" title="Input ST">📁</a>
-    <a href="{{ url_for('Global_WIP') }}" title="Global WIP">📊</a>
+      <!-- Flux opérationnel -->
+      <a href="{{ url_for('work_reception') }}" title="Réception">📥</a>
+      <a href="{{ url_for('work_douane') }}" title="Douane">🛃</a>
+      <a href="{{ url_for('work_reception_check') }}" title="Contrôle Réception">✅</a>
+      <a href="{{ url_for('work_photo') }}" title="Photo">📸</a>
+      <a href="{{ url_for('work_rac') }}" title="RAC">🧩</a>
+      <a href="{{ url_for('work_emballage') }}" title="Emballage">📦</a>
+      <a href="{{ url_for('work_sap') }}" title="SAP">📝</a>
+      <a href="{{ url_for('work_repair') }}" title="Repair">🔧</a>
+      <a href="{{ url_for('work_inspection') }}" title="Inspection">🔍</a>
+      <a href="{{ url_for('work_pool') }}" title="Pool">🎯</a>
+      <a href="{{ url_for('work_prison') }}" title="Prison">🚫</a>
+      <a href="{{ url_for('work_kardex') }}" title="Kardex">📦</a>
+      <a href="{{ url_for('work_input_st') }}" title="Input ST">📁</a>
+      <a href="{{ url_for('return_st_workflow') }}" title="Return ST Workflow">📊</a>
+      <a href="{{ url_for('Global_WIP') }}" title="Global WIP">📉</a>
 
-    <!-- Archives (RBAC) -->
-    {% if current_user.is_authenticated and current_user.role in ['admin','emballage','inspection'] %}
+      <!-- Archives (RBAC) -->
+      {% if current_user.is_authenticated and current_user.role in ['admin','emballage','inspection'] %}
       <a href="{{ url_for('archives') }}" title="Archives">📁</a>
-    {% endif %}
+      {% endif %}
 
-    <!-- Robot (RBAC) -->
-    {% if current_user.is_authenticated and current_user.role in ['admin','photo','inspection','emballage'] %}
+      <!-- Robot (RBAC) -->
+      {% if current_user.is_authenticated and current_user.role in ['admin','photo','inspection','emballage'] %}
       <a href="{{ url_for('robot_status') }}" title="Robot MiR">🤖</a>
-    {% endif %}
+      {% endif %}
 
-    <!-- Manager Dashboard (RBAC) -->
-    {% if current_user.is_authenticated and current_user.role in ['admin','manager'] %}
+      <!-- Manager Dashboard (RBAC) -->
+      {% if current_user.is_authenticated and current_user.role in ['admin','manager'] %}
       <a href="{{ url_for('manager_dashboard') }}" title="Dashboard Manager">📊</a>
-    {% endif %}
+      {% endif %}
 
-    <!-- Zone utilisateur -->
-    {% if current_user.is_authenticated %}
+      <!-- Zone utilisateur -->
+      {% if current_user.is_authenticated %}
       <span class="user-zone-b">
         {{ current_user.display_name }}
         {% if current_user.role == 'admin' %}
-          · <a href="{{ url_for('admin_users') }}" title="Administration">⚙️</a>
+        · <a href="{{ url_for('admin_users') }}" title="Administration">⚙️</a>
         {% endif %}
         · <a href="{{ url_for('logout') }}" title="Se déconnecter">🔓</a>
       </span>
-    {% else %}
+      {% else %}
       <span class="user-zone-b">
         <a href="{{ url_for('login') }}" title="Se connecter">🔐</a>
       </span>
-    {% endif %}
-  </nav>
-</header>
+      {% endif %}
+    </nav>
+  </header>
 
 
-<!-- ========== CONTENU ========== -->
-<main class="page-b">
+  <!-- ========== CONTENU ========== -->
+  <main class="page-b">
 
-  <!-- Flashes -->
-  {% with messages = get_flashed_messages(with_categories=true) %}
+    <!-- Flashes -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <ul class="flash-b">
-        {% for cat, msg in messages %}
-          <li class="flash-msg {{ cat }}">{{ msg }}</li>
-        {% endfor %}
-      </ul>
+    <ul class="flash-b">
+      {% for cat, msg in messages %}
+      <li class="flash-msg {{ cat }}">{{ msg }}</li>
+      {% endfor %}
+    </ul>
     {% endif %}
-  {% endwith %}
+    {% endwith %}
 
-  {% block content %}{% endblock %}
-</main>
-
-
-<!-- ========== FOOTER ========== -->
-<footer class="foot-b">
-  Raspi Stock — Thème B • {{ request.path }}
-</footer>
+    {% block content %}{% endblock %}
+  </main>
 
 
-<!-- ========== MODALE FULL‑SCREEN (overlay + conteneur) ========== -->
-<div id="modal-overlay" class="modal-overlay hidden" aria-hidden="true">
-  <div id="modal-container" class="modal-container hidden" role="dialog" aria-modal="true">
-    {% block modal %}{% endblock %}
+  <!-- ========== FOOTER ========== -->
+  <footer class="foot-b">
+    Raspi Stock — Thème B • {{ request.path }}
+  </footer>
+
+
+  <!-- ========== MODALE FULL‑SCREEN (overlay + conteneur) ========== -->
+  <div id="modal-overlay" class="modal-overlay hidden" aria-hidden="true">
+    <div id="modal-container" class="modal-container hidden" role="dialog" aria-modal="true">
+      {% block modal %}{% endblock %}
+    </div>
   </div>
-</div>
 
-<!-- JS Thème B -->
-<script src="{{ url_for('static', filename='app.js') }}"></script>
-{% block scripts %}{% endblock %}
+  <!-- JS Thème B -->
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  {% block scripts %}{% endblock %}
 
 </body>
+
 </html>

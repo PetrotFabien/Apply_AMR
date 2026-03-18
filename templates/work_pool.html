@@ -7,7 +7,8 @@
 
 <p class="muted" style="margin-bottom:1.4rem;">
     Articles en <strong>Pool</strong>.<br>
-    Décision: <strong style="color:#28a745;">OUI</strong> → Kardex Input | <strong style="color:#dc3545;">NON</strong> → Prison
+    Décision: <strong style="color:#28a745;">OUI</strong> → Kardex Input | <strong style="color:#dc3545;">NON</strong> →
+    Prison
 </p>
 
 <div class="cards">
@@ -17,11 +18,12 @@
             <h3 style="margin:0;">{{ it.avis_no or it.sku }}</h3>
             <span class="badge">Pool</span>
         </div>
-        
+
         <div style="margin:.8rem 0; border-top:1px solid var(--border); padding-top:.8rem;">
-            <p class="muted"><span class="badge">PN: {{ it.pn or '—' }}</span> <span class="badge">{{ it.size }}</span></p>
+            <p class="muted"><span class="badge">PN: {{ it.pn or '—' }}</span> <span class="badge">{{ it.size }}</span>
+            </p>
         </div>
-        
+
         <div class="row-right" style="gap:.6rem; margin-top:1rem;">
             <form method="post" action="{{ url_for('pool_yes', item_id=it.id) }}" style="display:inline;">
                 <button class="btn btn-success" type="submit">✅ OUI → Kardex</button>
@@ -33,7 +35,7 @@
         </div>
     </div>
     {% else %}
-        <div class="card"><em>Aucun article en Pool.</em></div>
+    <div class="card"><em>Aucun article en Pool.</em></div>
     {% endfor %}
 </div>
 

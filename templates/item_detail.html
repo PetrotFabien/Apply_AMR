@@ -39,9 +39,9 @@
 
         <h4>📷 Photo</h4>
         {% if it.photo_path %}
-            <img src="{{ url_for('uploads', filename=it.photo_path) }}" style="max-width:100%;">
+        <img src="{{ url_for('uploads', filename=it.photo_path) }}" style="max-width:100%;">
         {% else %}
-            <p class="muted">Aucune photo disponible.</p>
+        <p class="muted">Aucune photo disponible.</p>
         {% endif %}
     </div>
 
@@ -53,7 +53,13 @@
         <div style="max-height:500px; overflow-y:auto; margin-top:.7rem;">
             <table class="table">
                 <thead>
-                    <tr><th>Date</th><th>Action</th><th>De</th><th>Vers</th><th>User</th></tr>
+                    <tr>
+                        <th>Date</th>
+                        <th>Action</th>
+                        <th>De</th>
+                        <th>Vers</th>
+                        <th>User</th>
+                    </tr>
                 </thead>
                 <tbody>
                     {% for m in moves %}
@@ -65,7 +71,9 @@
                         <td>{{ m.user or "—" }}</td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5" class="muted">Aucun mouvement enregistré.</td></tr>
+                    <tr>
+                        <td colspan="5" class="muted">Aucun mouvement enregistré.</td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -80,7 +88,7 @@
     <h3>🛠 Actions administrateur</h3>
 
     <form method="post" action="{{ url_for('item_delete', item_id=it.id) }}"
-          onsubmit="return confirm('Archiver cet article ?')" class="row-right" style="gap:.6rem;">
+        onsubmit="return confirm('Archiver cet article ?')" class="row-right" style="gap:.6rem;">
         <button class="btn btn-warn" type="submit">Archiver l’article</button>
     </form>
 </div>

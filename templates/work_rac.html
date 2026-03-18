@@ -36,30 +36,25 @@
         <div class="row-right" style="gap:.7rem; margin-top:.8rem;">
 
             <!-- RAC OK -->
-            <form method="post"
-                  action="{{ url_for('rac_ok', item_id=it['id']) }}"
-                  onsubmit="disableOnSubmit(this)">
+            <form method="post" action="{{ url_for('rac_ok', item_id=it['id']) }}" onsubmit="disableOnSubmit(this)">
                 <button class="btn btn-ok" type="submit">✔ OK</button>
             </form>
 
             <!-- RAC NOK -->
-            <form method="post"
-                  action="{{ url_for('rac_nok', item_id=it['id']) }}"
-                  onsubmit="disableOnSubmit(this)">
+            <form method="post" action="{{ url_for('rac_nok', item_id=it['id']) }}" onsubmit="disableOnSubmit(this)">
                 <button class="btn btn-danger" type="submit">✖ NOK</button>
             </form>
 
             <!-- Détails -->
-            <a class="btn"
-               href="{{ url_for('item_detail', item_id=it['id']) }}">
-               Détails
+            <a class="btn" href="{{ url_for('item_detail', item_id=it['id']) }}">
+                Détails
             </a>
 
         </div>
 
     </div>
     {% else %}
-        <div class="card"><em>Aucun article en attente RAC.</em></div>
+    <div class="card"><em>Aucun article en attente RAC.</em></div>
     {% endfor %}
 
 </div>

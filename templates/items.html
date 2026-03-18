@@ -10,8 +10,7 @@
     <form method="get" class="row" style="gap:.6rem;align-items:flex-end;">
         <div style="flex:1;min-width:260px;">
             <label class="muted" style="display:block;margin-bottom:.25rem;">Recherche</label>
-            <input name="q" type="text" placeholder="SKU / Description / Avis / Commande / BL"
-                   value="{{ q or '' }}">
+            <input name="q" type="text" placeholder="SKU / Description / Avis / Commande / BL" value="{{ q or '' }}">
         </div>
 
         <button class="btn" type="submit">Rechercher</button>
@@ -80,9 +79,16 @@
         <table class="table">
             <thead>
                 <tr>
-                    <th>ID</th><th>SKU</th><th>Taille</th><th>Description</th>
-                    <th>StRepair</th><th>RepairSNPA</th><th>HG</th><th>Statut</th>
-                    <th>Empl.</th><th style="white-space:nowrap;">Actions</th>
+                    <th>ID</th>
+                    <th>SKU</th>
+                    <th>Taille</th>
+                    <th>Description</th>
+                    <th>StRepair</th>
+                    <th>RepairSNPA</th>
+                    <th>HG</th>
+                    <th>Statut</th>
+                    <th>Empl.</th>
+                    <th style="white-space:nowrap;">Actions</th>
                 </tr>
             </thead>
 
@@ -106,8 +112,8 @@
 
                         {% if current_user.role == 'admin' %}
                         <!-- Archiver (soft delete only) -->
-                        <form method="post" action="{{ url_for('item_delete', item_id=it.id) }}"
-                              style="display:inline;" onsubmit="return confirm('Archiver cet article ?')">
+                        <form method="post" action="{{ url_for('item_delete', item_id=it.id) }}" style="display:inline;"
+                            onsubmit="return confirm('Archiver cet article ?')">
                             <button class="btn btn-warn" type="submit">Archiver</button>
                         </form>
                         {% endif %}
@@ -115,7 +121,9 @@
                 </tr>
 
                 {% else %}
-                <tr><td colspan="9" class="muted">Aucun résultat.</td></tr>
+                <tr>
+                    <td colspan="9" class="muted">Aucun résultat.</td>
+                </tr>
                 {% endfor %}
 
             </tbody>

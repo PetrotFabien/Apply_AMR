@@ -13,158 +13,176 @@
 
   <!-- ===================== DOUANE ===================== -->
   <div class="card">
-    <h3>🛃 Attente Douane <span class="badge" style="background:var(--purple);border-color:var(--purple-dark);">encours</span></h3>
+    <h3>🛃 Attente Douane <span class="badge"
+        style="background:var(--purple);border-color:var(--purple-dark);">encours</span></h3>
     {% if encours.attente_douane %}
-      <ul class="compact">
-        {% for it in encours.attente_douane %}
-          <li>
-            <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge" style="background:#555;">HG</span>{% endif %}
-            · <span class="muted">{{ it.created_at }}</span>
-            · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
-          </li>
-        {% endfor %}
-      </ul>
+    <ul class="compact">
+      {% for it in encours.attente_douane %}
+      <li>
+        <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge"
+          style="background:#555;">HG</span>{% endif %}
+        · <span class="muted">{{ it.created_at }}</span>
+        · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
-      <p class="muted">Aucun article.</p>
+    <p class="muted">Aucun article.</p>
     {% endif %}
   </div>
 
   <!-- ===================== PHOTO ===================== -->
   <div class="card">
-    <h3>📸 Attente Photo <span class="badge" style="background:var(--accent);border-color:var(--accent-dark);color:#021016;">encours</span></h3>
+    <h3>📸 Attente Photo <span class="badge"
+        style="background:var(--accent);border-color:var(--accent-dark);color:#021016;">encours</span></h3>
     {% if encours.attente_photo %}
-      <ul class="compact">
-        {% for it in encours.attente_photo %}
-          <li>
-            <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge" style="background:#555;">HG</span>{% endif %}
-            · <span class="muted">{{ it.created_at }}</span>
-            · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
-          </li>
-        {% endfor %}
-      </ul>
+    <ul class="compact">
+      {% for it in encours.attente_photo %}
+      <li>
+        <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge"
+          style="background:#555;">HG</span>{% endif %}
+        · <span class="muted">{{ it.created_at }}</span>
+        · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
-      <p class="muted">Aucun article.</p>
+    <p class="muted">Aucun article.</p>
     {% endif %}
   </div>
 
   <!-- ===================== INSPECTION ===================== -->
   <div class="card">
-    <h3>🔍 Attente Inspection <span class="badge" style="background:var(--accent);border-color:var(--accent-dark);color:#021016;">encours</span></h3>
+    <h3>🔍 Attente Inspection <span class="badge"
+        style="background:var(--accent);border-color:var(--accent-dark);color:#021016;">encours</span></h3>
     {% if encours.attente_inspection %}
-      <ul class="compact">
-        {% for it in encours.attente_inspection %}
-          <li>
-            <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge" style="background:#555;">HG</span>{% endif %}
-            · <span class="muted">{{ it.created_at }}</span>
-            · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
-          </li>
-        {% endfor %}
-      </ul>
+    <ul class="compact">
+      {% for it in encours.attente_inspection %}
+      <li>
+        <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge"
+          style="background:#555;">HG</span>{% endif %}
+        · <span class="muted">{{ it.created_at }}</span>
+        · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
-      <p class="muted">Aucun article.</p>
+    <p class="muted">Aucun article.</p>
     {% endif %}
   </div>
 
   <!-- ===================== NOGO ===================== -->
   <div class="card">
-    <h3>⚠️ <span style="color:var(--danger);">NOGO</span> <span class="badge" style="background:var(--danger);border-color:var(--danger-dark);">priorité</span></h3>
+    <h3>⚠️ <span style="color:var(--danger);">NOGO</span> <span class="badge"
+        style="background:var(--danger);border-color:var(--danger-dark);">priorité</span></h3>
     {% if encours.nogo %}
-      <ul class="compact">
-        {% for it in encours.nogo %}
-          <li>
-            <span class="badge" style="background:rgba(239,68,68,.20);border-color:var(--danger);color:#fff;">{{ it.avis_no or it.sku }}</span>
-            · <span class="muted">{{ it.updated_at }}</span>
-            · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
-          </li>
-        {% endfor %}
-      </ul>
+    <ul class="compact">
+      {% for it in encours.nogo %}
+      <li>
+        <span class="badge" style="background:rgba(239,68,68,.20);border-color:var(--danger);color:#fff;">{{ it.avis_no
+          or it.sku }}</span>
+        · <span class="muted">{{ it.updated_at }}</span>
+        · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
-      <p class="muted">Aucun article NOGO.</p>
+    <p class="muted">Aucun article NOGO.</p>
     {% endif %}
   </div>
 
   <!-- ===================== RAC ===================== -->
   <div class="card">
-    <h3>🧩 Attente RAC <span class="badge" style="background:var(--accent);border-color:var(--accent-dark);color:#021016;">encours</span></h3>
+    <h3>🧩 Attente RAC <span class="badge"
+        style="background:var(--accent);border-color:var(--accent-dark);color:#021016;">encours</span></h3>
     {% if encours.attente_rac %}
-      <ul class="compact">
-        {% for it in encours.attente_rac %}
-          <li>
-            <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge" style="background:#555;">HG</span>{% endif %}
-            · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
-          </li>
-        {% endfor %}
-      </ul>
+    <ul class="compact">
+      {% for it in encours.attente_rac %}
+      <li>
+        <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge"
+          style="background:#555;">HG</span>{% endif %}
+        · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
-      <p class="muted">Aucun article.</p>
+    <p class="muted">Aucun article.</p>
     {% endif %}
   </div>
 
   <!-- ===================== EMBALLAGE ===================== -->
   <div class="card">
-    <h3>📦 Attente Emballage <span class="badge" style="background:var(--accent);border-color:var(--accent-dark);color:#021016;">encours</span></h3>
+    <h3>📦 Attente Emballage <span class="badge"
+        style="background:var(--accent);border-color:var(--accent-dark);color:#021016;">encours</span></h3>
     {% if encours.attente_emballage %}
-      <ul class="compact">
-        {% for it in encours.attente_emballage %}
-          <li>
-            <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge" style="background:#555;">HG</span>{% endif %}
-            · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
-          </li>
-        {% endfor %}
-      </ul>
+    <ul class="compact">
+      {% for it in encours.attente_emballage %}
+      <li>
+        <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge"
+          style="background:#555;">HG</span>{% endif %}
+        · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
-      <p class="muted">Aucun article.</p>
+    <p class="muted">Aucun article.</p>
     {% endif %}
   </div>
 
   <!-- ===================== EXPÉ CLIENT ===================== -->
   <div class="card">
-    <h3>👤 Expédition Client <span class="badge" style="background:var(--purple);border-color:var(--purple-dark);">prêt</span></h3>
+    <h3>👤 Expédition Client <span class="badge"
+        style="background:var(--purple);border-color:var(--purple-dark);">prêt</span></h3>
     {% if encours.attente_client %}
-      <ul class="compact">
-        {% for it in encours.attente_client %}
-          <li>
-            <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge" style="background:#555;">HG</span>{% endif %}
-            · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
-          </li>
-        {% endfor %}
-      </ul>
+    <ul class="compact">
+      {% for it in encours.attente_client %}
+      <li>
+        <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge"
+          style="background:#555;">HG</span>{% endif %}
+        · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
-      <p class="muted">Aucun article.</p>
+    <p class="muted">Aucun article.</p>
     {% endif %}
   </div>
 
   <!-- ===================== EXPÉ ST ===================== -->
   <div class="card">
-    <h3>🏭 Expédition ST <span class="badge" style="background:var(--purple);border-color:var(--purple-dark);">prêt</span></h3>
+    <h3>🏭 Expédition ST <span class="badge"
+        style="background:var(--purple);border-color:var(--purple-dark);">prêt</span></h3>
     {% if encours.attente_st %}
-      <ul class="compact">
-        {% for it in encours.attente_st %}
-          <li>
-            <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge" style="background:#555;">HG</span>{% endif %}
-            · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
-          </li>
-        {% endfor %}
-      </ul>
+    <ul class="compact">
+      {% for it in encours.attente_st %}
+      <li>
+        <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge"
+          style="background:#555;">HG</span>{% endif %}
+        · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
-      <p class="muted">Aucun article.</p>
+    <p class="muted">Aucun article.</p>
     {% endif %}
   </div>
 
   <!-- ===================== EXPÉ T2 ===================== -->
   <div class="card">
-    <h3>🛫 Expédition T2 <span class="badge" style="background:var(--purple);border-color:var(--purple-dark);">prêt</span></h3>
+    <h3>🛫 Expédition T2 <span class="badge"
+        style="background:var(--purple);border-color:var(--purple-dark);">prêt</span></h3>
     {% if encours.attente_t2 %}
-      <ul class="compact">
-        {% for it in encours.attente_t2 %}
-          <li>
-            <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge" style="background:#555;">HG</span>{% endif %}
-            · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
-          </li>
-        {% endfor %}
-      </ul>
+    <ul class="compact">
+      {% for it in encours.attente_t2 %}
+      <li>
+        <span class="badge">{{ it.avis_no or it.sku }}</span>{% if it.hors_gabarit %} <span class="badge"
+          style="background:#555;">HG</span>{% endif %}
+        · <a class="btn btn-ghost" href="{{ url_for('item_detail', item_id=it.id) }}">Détails</a>
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
-      <p class="muted">Aucun article.</p>
+    <p class="muted">Aucun article.</p>
     {% endif %}
   </div>
 

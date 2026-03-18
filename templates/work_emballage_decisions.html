@@ -17,33 +17,37 @@
             <h3 style="margin:0;">{{ it.avis_no or it.sku }}</h3>
             <span class="badge">Poste emballage</span>
         </div>
-        
+
         <div style="margin:.8rem 0; border-top:1px solid var(--border); padding-top:.8rem;">
-            <p class="muted"><span class="badge">{{ it.size }}</span> <span class="badge">PN: {{ it.pn or '—' }}</span></p>
-            <p class="muted">StRepair: {{ '✓' if it.st_repair else '✗' }} | RepairSNPA: {{ '✓' if it.repair_snpa else '✗' }} | Hors gabarit: {{ '✓' if it.hors_gabarit else '✗' }}</p>
+            <p class="muted"><span class="badge">{{ it.size }}</span> <span class="badge">PN: {{ it.pn or '—' }}</span>
+            </p>
+            <p class="muted">StRepair: {{ '✓' if it.st_repair else '✗' }} | RepairSNPA: {{ '✓' if it.repair_snpa else
+                '✗' }} | Hors gabarit: {{ '✓' if it.hors_gabarit else '✗' }}</p>
         </div>
-        
+
         <div class="row-right" style="gap:.4rem; margin-top:1rem;">
             <form method="post" action="{{ url_for('emballage_nogo', item_id=it.id) }}" style="display:inline;">
                 <button class="btn btn-danger" type="submit">🚫 NOGO → ST Return</button>
             </form>
-            
-            <form method="post" action="{{ url_for('emballage_repair_decision', item_id=it.id) }}" style="display:inline;">
+
+            <form method="post" action="{{ url_for('emballage_repair_decision', item_id=it.id) }}"
+                style="display:inline;">
                 <label style="display:inline-flex; align-items:center;">
                     <input type="checkbox" name="is_repair_snpa">
                     <button class="btn btn-info" type="submit" style="margin-left:.5rem;">🔧 LRU Repair SNPA</button>
                 </label>
             </form>
-            
-            <form method="post" action="{{ url_for('emballage_repair_decision', item_id=it.id) }}" style="display:inline;">
+
+            <form method="post" action="{{ url_for('emballage_repair_decision', item_id=it.id) }}"
+                style="display:inline;">
                 <button class="btn btn-primary" type="submit">📥 Input ST Std</button>
             </form>
-            
+
             <a class="btn" href="{{ url_for('item_detail', item_id=it.id) }}">📄</a>
         </div>
     </div>
     {% else %}
-        <div class="card"><em>Aucun article au poste emballage.</em></div>
+    <div class="card"><em>Aucun article au poste emballage.</em></div>
     {% endfor %}
 </div>
 

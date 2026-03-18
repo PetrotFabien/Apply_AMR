@@ -37,15 +37,15 @@
 
             <!-- OK → redirection vers /work/inspection?modal=pool&id=X -->
             {{ url_for(
-                <input type="hidden" name="item_id" value="{{ it.id }}">
-                <button class="btn btn-ok" type="submit">✔ OK</button>
+            <input type="hidden" name="item_id" value="{{ it.id }}">
+            <button class="btn btn-ok" type="submit">✔ OK</button>
             </form>
 
             <!-- NOK → passage en PRISON -->
             {{ url_for(
-                <input type="hidden" name="item_id" value="{{ it.id }}">
-                <input type="hidden" name="action" value="NOK">
-                <button class="btn btn-danger" type="submit">✖ NOK</button>
+            <input type="hidden" name="item_id" value="{{ it.id }}">
+            <input type="hidden" name="action" value="NOK">
+            <button class="btn btn-danger" type="submit">✖ NOK</button>
             </form>
 
             <!-- Détails -->
@@ -55,7 +55,7 @@
 
     </div>
     {% else %}
-        <div class="card"><em>Aucun article en attente inspection.</em></div>
+    <div class="card"><em>Aucun article en attente inspection.</em></div>
     {% endfor %}
 
 </div>
@@ -67,47 +67,47 @@
 {% block modal %}
 
 {# ==============================================================
-   MODALE POOL — S’affiche si /work/inspection?modal=pool&id=xyz
+MODALE POOL — S’affiche si /work/inspection?modal=pool&id=xyz
 ================================================================ #}
 
 {% if request.args.get('modal') == 'pool' and request.args.get('id') %}
-    {% set mid = request.args.get('id') %}
+{% set mid = request.args.get('id') %}
 
-    {% set body %}
+{% set body %}
 
-        <p class="muted">
-            Inspection OK.<br>
-            Souhaitez-vous placer l’article en <strong>Pool</strong>
-            (suppression logique) ?
-        </p>
+<p class="muted">
+    Inspection OK.<br>
+    Souhaitez-vous placer l’article en <strong>Pool</strong>
+    (suppression logique) ?
+</p>
 
-        <div class="row-right" style="margin-top:1.2rem; gap:.7rem;">
+<div class="row-right" style="margin-top:1.2rem; gap:.7rem;">
 
-            <!-- OUI → suppression logique -->
-            {{ url_for(
-                <input type="hidden" name="item_id" value="{{ mid }}">
-                <button class="btn btn-ok" name="choice" value="oui" type="submit">
-                    Oui — supprimer
-                </button>
-            </form>
+    <!-- OUI → suppression logique -->
+    {{ url_for(
+    <input type="hidden" name="item_id" value="{{ mid }}">
+    <button class="btn btn-ok" name="choice" value="oui" type="submit">
+        Oui — supprimer
+    </button>
+    </form>
 
-            <!-- NON → envoi vers Emballage -->
-            {{ url_for(
-                <input type="hidden" name="item_id" value="{{ mid }}">
-                <button class="btn btn-warn" name="choice" value="non" type="submit">
-                    Non — Emballage
-                </button>
-            </form>
+    <!-- NON → envoi vers Emballage -->
+    {{ url_for(
+    <input type="hidden" name="item_id" value="{{ mid }}">
+    <button class="btn btn-warn" name="choice" value="non" type="submit">
+        Non — Emballage
+    </button>
+    </form>
 
-        </div>
+</div>
 
-    {% endset %}
+{% endset %}
 
-    {{ modal(
-        title="Décision Pool",
-        body_html=body,
-        footer_html="<button class='btn btn-ghost' onclick='closeGlobalModal()'>Annuler</button>"
-    ) }}
+{{ modal(
+title="Décision Pool",
+body_html=body,
+footer_html="<button class='btn btn-ghost' onclick='closeGlobalModal()'>Annuler</button>"
+) }}
 
 {% endif %}
 
