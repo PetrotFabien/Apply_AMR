@@ -21,27 +21,35 @@
     <nav class="menu-b">
       <!-- Accès universels -->
       <a href="{{ url_for('index') }}" title="Accueil">🏠</a>
-      <a href="{{ url_for('items') }}" title="Articles">📦</a>
-      <a href="{{ url_for('locations') }}" title="Emplacements">📍</a>
+      <a href="{{ url_for('storage_map') }}" title="Carte d'emplacements">📍</a>
 
       <span class="div-b">|</span>
 
-      <!-- Flux opérationnel -->
-      <a href="{{ url_for('work_reception') }}" title="Réception">📥</a>
-      <a href="{{ url_for('work_douane') }}" title="Douane">🛃</a>
-      <a href="{{ url_for('work_reception_check') }}" title="Contrôle Réception">✅</a>
-      <a href="{{ url_for('work_photo') }}" title="Photo">📸</a>
-      <a href="{{ url_for('work_rac') }}" title="RAC">🧩</a>
-      <a href="{{ url_for('work_emballage') }}" title="Emballage">📦</a>
-      <a href="{{ url_for('work_sap') }}" title="SAP">📝</a>
-      <a href="{{ url_for('work_repair') }}" title="Repair">🔧</a>
-      <a href="{{ url_for('work_inspection') }}" title="Inspection">🔍</a>
-      <a href="{{ url_for('work_pool') }}" title="Pool">🎯</a>
-      <a href="{{ url_for('work_prison') }}" title="Prison">🚫</a>
-      <a href="{{ url_for('work_kardex') }}" title="Kardex">📦</a>
-      <a href="{{ url_for('work_input_st') }}" title="Input ST">📁</a>
-      <a href="{{ url_for('return_st_workflow') }}" title="Return ST Workflow">📊</a>
-      <a href="{{ url_for('Global_WIP') }}" title="Global WIP">📉</a>
+      <!-- Plans de charge -->
+      {% if current_user.is_authenticated and current_user.role in ['admin', 'douane'] %}
+      <a href="{{ url_for('workload_douane') }}" title="Charge Douane">🛃</a>
+      {% endif %}
+      {% if current_user.is_authenticated and current_user.role in ['admin', 'photo'] %}
+      <a href="{{ url_for('workload_photo') }}" title="Charge Photo">📸</a>
+      {% endif %}
+      {% if current_user.is_authenticated and current_user.role in ['admin', 'inspection'] %}
+      <a href="{{ url_for('workload_inspection') }}" title="Charge Inspection">🔍</a>
+      {% endif %}
+      {% if current_user.is_authenticated and current_user.role in ['admin', 'rac'] %}
+      <a href="{{ url_for('workload_rac') }}" title="Charge RAC">🧩</a>
+      {% endif %}
+      {% if current_user.is_authenticated and current_user.role in ['admin', 'emballage'] %}
+      <a href="{{ url_for('workload_emballage') }}" title="Charge Emballage">📦</a>
+      {% endif %}
+      {% if current_user.is_authenticated and current_user.role in ['admin', 'expedition'] %}
+      <a href="{{ url_for('workload_expe') }}" title="Charge Expédition">🚚</a>
+      {% endif %}
+      {% if current_user.is_authenticated and current_user.role == 'admin' %}
+      <a href="{{ url_for('workload_repair') }}" title="Charge Repair">🔧</a>
+      <a href="{{ url_for('workload_kardex') }}" title="Charge Kardex">📋</a>
+      <a href="{{ url_for('workload_input_st') }}" title="Charge Input ST">📁</a>
+      <a href="{{ url_for('workload_nogo') }}" title="Charge NOGO">❌</a>
+      {% endif %}
 
       <!-- Archives (RBAC) -->
       {% if current_user.is_authenticated and current_user.role in ['admin','emballage','inspection'] %}

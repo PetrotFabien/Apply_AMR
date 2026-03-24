@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Workload Kardex{% endblock %}
+
+{% block content %}
+
+<h2>📋 Workload Kardex</h2>
+
+<p>Articles en kardex: <strong>{{ items|length }}</strong></p>
+
+{% if items %}
+<table class="table">
+    <thead>
+        <tr>
+            <th>SKU</th>
+            <th>PN</th>
+            <th>Description</th>
+            <th>Taille</th>
+            <th>Créé le</th>
+            <th>Emplacement</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.sku }}</td>
+            <td>{{ item.pn or '-' }}</td>
+            <td>{{ item.description }}</td>
+            <td>{{ item.size }}</td>
+            <td>{{ item.created_at }}</td>
+            <td>{{ item.loc_code or '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted">Aucun article en kardex.</p>
+{% endif %}
+
+{% endblock %}

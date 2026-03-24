@@ -27,53 +27,87 @@
     <div class="card">
         <h3>Statuts actifs</h3>
         {% if statuses %}
-            <ul class="compact" style="margin-top:.5rem;">
-                {% for row in statuses %}
-                    <li>{{ row["status"] }} : {{ row["c"] }}</li>
-                {% endfor %}
-            </ul>
+        <ul class="compact" style="margin-top:.5rem;">
+            {% for row in statuses %}
+            <li>{{ row["status"] }} : {{ row["c"] }}</li>
+            {% endfor %}
+        </ul>
         {% else %}
-            <p class="muted" style="margin-top:.5rem;">Aucun article actif.</p>
+        <p class="muted" style="margin-top:.5rem;">Aucun article actif.</p>
         {% endif %}
     </div>
 
 </div>
 
 
-<!-- ====================== FLUX OPÉRATIONNEL ======================== -->
+<!-- ====================== PLANS DE CHARGE ======================== -->
 
-<h2 style="margin-top:2.2rem;">⚡ Flux opérationnel</h2>
+<h2 style="margin-top:2.2rem;">📊 Plans de charge</h2>
 
 <div class="cards" style="margin-top:1rem;">
 
-    <a class="card" href="{{ url_for('work_douane') }}">
-        <h3>🛃 Zone Douane</h3>
+    <a class="card" href="{{ url_for('workload_douane') }}">
+        <h3>🛃 Douane</h3>
         <p class="muted">Articles en attente douane</p>
     </a>
 
-    <a class="card" href="{{ url_for('work_photo') }}">
-        <h3>📸 Poste Photo</h3>
-        <p class="muted">Contrôle photo avant stockage</p>
+    <a class="card" href="{{ url_for('workload_photo') }}">
+        <h3>📸 Photo</h3>
+        <p class="muted">Articles en attente photo</p>
     </a>
 
-    <a class="card" href="{{ url_for('work_inspection') }}">
+    <a class="card" href="{{ url_for('workload_inspection') }}">
         <h3>🔍 Inspection</h3>
-        <p class="muted">Contrôles + Pool (OK/NOK)</p>
+        <p class="muted">Articles en attente inspection</p>
     </a>
 
-    <a class="card" href="{{ url_for('work_rac') }}">
+    <a class="card" href="{{ url_for('workload_rac') }}">
         <h3>🧩 RAC</h3>
-        <p class="muted">Validation RAC</p>
+        <p class="muted">Articles en attente RAC</p>
     </a>
 
-    <a class="card" href="{{ url_for('work_emballage') }}">
+    <a class="card" href="{{ url_for('workload_emballage') }}">
         <h3>📦 Emballage</h3>
-        <p class="muted">Choix ST/T2 ou Client</p>
+        <p class="muted">Articles en attente emballage</p>
     </a>
 
-    <a class="card" href="{{ url_for('work_expe') }}">
+    <a class="card" href="{{ url_for('workload_expe') }}">
         <h3>🚚 Expédition</h3>
-        <p class="muted">Sortie du flux</p>
+        <p class="muted">Articles en attente expédition</p>
+    </a>
+
+    <a class="card" href="{{ url_for('workload_repair') }}">
+        <h3>🔧 Repair</h3>
+        <p class="muted">Articles en réparation</p>
+    </a>
+
+    <a class="card" href="{{ url_for('workload_kardex') }}">
+        <h3>📋 Kardex</h3>
+        <p class="muted">Articles en kardex</p>
+    </a>
+
+    <a class="card" href="{{ url_for('workload_input_st') }}">
+        <h3>📥 Input ST</h3>
+        <p class="muted">Articles en input ST</p>
+    </a>
+
+    <a class="card" href="{{ url_for('workload_nogo') }}">
+        <h3>❌ NOGO</h3>
+        <p class="muted">Articles NOGO</p>
+    </a>
+
+</div>
+
+
+<!-- ====================== GESTION DES EMPLACEMENTS ======================== -->
+
+<h2 style="margin-top:2.2rem;">📍 Gestion des Emplacements</h2>
+
+<div class="cards" style="margin-top:1rem;">
+
+    <a class="card" href="{{ url_for('storage_map') }}">
+        <h3>🗺️ Carte des Emplacements</h3>
+        <p class="muted">Visualiser et gérer les statuts des chariots</p>
     </a>
 
 </div>

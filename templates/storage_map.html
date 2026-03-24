@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+{% block title %}Carte des Emplacements{% endblock %}
+
+{% block content %}
+
+<h2>📍 Carte des Emplacements de Stockage</h2>
+
+<style>
+    .storage-section {
+        margin-top: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .storage-section h3 {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .grid-sol-grand {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .grid-sol-petit {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 0.8rem;
+        margin-bottom: 2rem;
+    }
+
+    .grid-etagere {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .grid-poste {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .location-card {
+        background: white;
+        border: 2px solid #ddd;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .location-card:hover {
+        border-color: #667eea;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        transform: translateY(-2px);
+    }
+
+    .location-card.sol-grand {
+        background: linear-gradient(135deg, #667eea22 0%, #764ba222 100%);
+        border-color: #667eea;
+    }
+
+    .location-card.sol-petit {
+        background: linear-gradient(135deg, #f093fb22 0%, #f5576c22 100%);
+        border-color: #f5576c;
+    }
+
+    .location-card.etagere {
+        background: linear-gradient(135deg, #4facfe22 0%, #00f2fe22 100%);
+        border-color: #4facfe;
+    }
+
+    .location-card.poste {
+        background: linear-gradient(135deg, #43e97b22 0%, #38f9d722 100%);
+        border-color: #43e97b;
+    }
+
+    .location-code {
+        font-weight: bold;
+        font-size: 1.2rem;
+        color: #333;
+    }
+
+    .location-name {
+        font-size: 0.85rem;
+        color: #666;
+        margin-top: 0.25rem;
+        word-wrap: break-word;
+    }
+
+    .location-status {
+        font-size: 0.75rem;
+        margin-top: 0.5rem;
+        color: #999;
+    }
+
+    .chariot-status {
+        font-size: 0.85rem;
+        font-weight: bold;
+        margin-top: 0.5rem;
+        padding: 0.35rem 0.5rem;
+        border-radius: 0.25rem;
+        display: inline-block;
+    }
+
+    .chariot-status.libre {
+        background: #43e97b;
+        color: white;
+    }
+
+    .chariot-status.indisponible_vide {
+        background: #f5af19;
+        color: white;
+    }
+
+    .chariot-status.indisponible_plein {
+        background: #f5576c;
+        color: white;
+    }
+
+    .btn-status {
+        display: block;
+        margin-top: 0.5rem;
+        padding: 0.4rem 0.6rem;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        font-size: 0.75rem;
+        transition: background 0.3s;
+    }
+
+    .btn-status:hover {
+        background: #764ba2;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.4);
+    }
+
+    .modal-content {
+        background-color: #fefefe;
+        margin: 10% auto;
+        padding: 2rem;
+        border: 1px solid #888;
+        border-radius: 0.5rem;
+        width: 90%;
+        max-width: 400px;
+    }
+
+    .modal-close {
+        color: #aaa;
+        float: right;
+        font-size: 2rem;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .modal-close:hover {
+        color: black;
+    }
+
+    .status-options {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin: 1rem 0;
+    }
+
+    .status-btn {
+        padding: 0.8rem;
+        border: 2px solid #ddd;
+        background: white;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-weight: 500;
+    }
+
+    .status-btn:hover {
+        border-color: #667eea;
+        background: #f5f5f5;
+    }
+
+    .status-btn.libre {
+        border-color: #43e97b;
+        color: #43e97b;
+    }
+
+    .status-btn.indisponible_vide {
+        border-color: #f5af19;
+        color: #f5af19;
+    }
+
+    .status-btn.indisponible_plein {
+        border-color: #f5576c;
+        color: #f5576c;
+    }
+
+    .legend {
+        display: flex;
+        gap: 2rem;
+        margin: 2rem 0;
+        flex-wrap: wrap;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .legend-box {
+        width: 30px;
+        height: 30px;
+        border-radius: 0.25rem;
+        border: 2px solid;
+    }
+
+    .legend-box.sol-grand {
+        background: linear-gradient(135deg, #667eea22 0%, #764ba222 100%);
+        border-color: #667eea;
+    }
+
+    .legend-box.sol-petit {
+        background: linear-gradient(135deg, #f093fb22 0%, #f5576c22 100%);
+        border-color: #f5576c;
+    }
+
+    .legend-box.etagere {
+        background: linear-gradient(135deg, #4facfe22 0%, #00f2fe22 100%);
+        border-color: #4facfe;
+    }
+
+    .legend-box.poste {
+        background: linear-gradient(135deg, #43e97b22 0%, #38f9d722 100%);
+        border-color: #43e97b;
+    }
+</style>
+
+<!-- Légende -->
+<div class="legend">
+    <div class="legend-item">
+        <div class="legend-box sol-grand"></div>
+        <span>SOL - Grands Chariots</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-box sol-petit"></div>
+        <span>SOL - Petits Chariots</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-box etagere"></div>
+        <span>Étagères</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-box poste"></div>
+        <span>Postes</span>
+    </div>
+</div>
+
+<!-- SOL - GRANDS CHARIOTS -->
+{% if by_kind['SOL']['GRAND'] %}
+<div class="storage-section">
+    <h3>📦 SOL - Grands Chariots</h3>
+    <div class="grid-sol-grand">
+        {% for loc in by_kind['SOL']['GRAND'] %}
+        <div class="location-card sol-grand" title="{{ loc['name'] }}">
+            <div class="location-code">{{ loc['code'] }}</div>
+            <div class="location-name">{{ loc['name'] }}</div>
+            {% if loc['chariot_status'] %}
+            <div class="chariot-status {{ loc['chariot_status'] }}">
+                {% if loc['chariot_status'] == 'libre' %}✅ Libre{% elif loc['chariot_status'] == 'indisponible_vide'
+                %}⚠️ Vide{% else %}❌ Plein{% endif %}
+            </div>
+            {% endif %}
+            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+            <button class="btn-status"
+                onclick="openStatusModal({{ loc['id'] }}, '{{ loc['code'] }}', '{{ loc['chariot_status'] or '' }}')">Modifier</button>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- SOL - PETITS CHARIOTS -->
+{% if by_kind['SOL']['PETIT'] %}
+<div class="storage-section">
+    <h3>📦 SOL - Petits Chariots</h3>
+    <div class="grid-sol-petit">
+        {% for loc in by_kind['SOL']['PETIT'] %}
+        <div class="location-card sol-petit" title="{{ loc['name'] }}">
+            <div class="location-code">{{ loc['code'] }}</div>
+            <div class="location-name">Petit Chariot</div>
+            {% if loc['chariot_status'] %}
+            <div class="chariot-status {{ loc['chariot_status'] }}">
+                {% if loc['chariot_status'] == 'libre' %}✅{% elif loc['chariot_status'] == 'indisponible_vide' %}⚠️{%
+                else %}❌{% endif %}
+            </div>
+            {% endif %}
+            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+            <button class="btn-status"
+                onclick="openStatusModal({{ loc['id'] }}, '{{ loc['code'] }}', '{{ loc['chariot_status'] or '' }}')">Modifier</button>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ÉTAGÈRES -->
+{% if by_kind['ETAGERE'] %}
+<div class="storage-section">
+    <h3>🗄️ Étagères de Stockage</h3>
+    <div class="grid-etagere">
+        {% for loc in by_kind['ETAGERE'] %}
+        <div class="location-card etagere" title="{{ loc['name'] }}">
+            <div class="location-code">{{ loc['code'] }}</div>
+            <div class="location-name">{{ loc['name'] }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- POSTES -->
+{% if by_kind['POSTE'] %}
+<div class="storage-section">
+    <h3>⚙️ Postes de Travail</h3>
+    <div class="grid-poste">
+        {% for loc in by_kind['POSTE'] %}
+        <div class="location-card poste" title="{{ loc['name'] }}">
+            <div class="location-code">{{ loc['code'] }}</div>
+            <div class="location-name">{{ loc['name'] }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div style="margin-top: 3rem; padding: 1rem; background: #f5f5f5; border-radius: 0.5rem;">
+    <p><strong>Total d'emplacements:</strong> {{ locations|length }}</p>
+    <p><strong>Grands Chariots:</strong> {{ by_kind['SOL']['GRAND']|length }}</p>
+    <p><strong>Petits Chariots:</strong> {{ by_kind['SOL']['PETIT']|length }}</p>
+    <p><strong>Étagères:</strong> {{ by_kind['ETAGERE']|length }}</p>
+    <p><strong>Postes:</strong> {{ by_kind['POSTE']|length }}</p>
+</div>
+
+<!-- Modal Statut -->
+<div id="statusModal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeStatusModal()">&times;</span>
+        <h3>Modifier le statut du chariot</h3>
+        <p id="chariotCode" style="font-weight: bold;"></p>
+
+        <form id="statusForm" method="POST">
+            <div class="status-options">
+                <button type="button" class="status-btn libre" onclick="selectStatus('libre')">
+                    ✅ Libre
+                </button>
+                <button type="button" class="status-btn indisponible_vide" onclick="selectStatus('indisponible_vide')">
+                    ⚠️ Non disponible - Chariot vide
+                </button>
+                <button type="button" class="status-btn indisponible_plein"
+                    onclick="selectStatus('indisponible_plein')">
+                    ❌ Non disponible - Chariot plein
+                </button>
+            </div>
+            <input type="hidden" name="status" id="statusInput">
+            <button type="submit"
+                style="padding: 0.8rem; background: #667eea; color: white; border: none; border-radius: 0.5rem; cursor: pointer; width: 100%; font-weight: bold;">Valider</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openStatusModal(locationId, chariotCode, currentStatus) {
+        document.getElementById('chariotCode').textContent = chariotCode + ' (' + (currentStatus || 'Sans statut') + ')';
+        document.getElementById('statusForm').action = `/storage/${locationId}/status`;
+        document.getElementById('statusModal').style.display = 'block';
+    }
+
+    function closeStatusModal() {
+        document.getElementById('statusModal').style.display = 'none';
+    }
+
+    function selectStatus(status) {
+        document.getElementById('statusInput').value = status;
+        document.getElementById('statusForm').submit();
+    }
+
+    window.onclick = function (event) {
+        const modal = document.getElementById('statusModal');
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    }
+</script>
+
+{% endblock %}

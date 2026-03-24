@@ -14,7 +14,6 @@ Attente réception
 Poste photo
 Attente RAC
 Poste emballage
-Attente SAP
 Réparation SNPA
 Attente inspection
 Attente photo RAC
@@ -71,51 +70,37 @@ STOCK, NOGO, Supprimé
 - **Décisions**:
   1. **🚫 NOGO** → `Exp ST Return` → **FIN**
   2. **🔧 Repair SNPA?**
-     - ✅ OUI → `Attente SAP`
+     - ✅ OUI → `Réparation SNPA`
      - ❌ NON → `Input ST`
 
-### 7️⃣ **Attente SAP** → Création Avis (`/work/sap`)
-- **Entrée**: `Attente SAP`
-- **Action**: ✅ SAP Créé → `Réparation SNPA`
-- **Rôle**: `admin`, `reception`
-
-### 8️⃣ **Réparation SNPA** → (`/work/repair`)
+### 7️⃣ **Réparation SNPA** → (`/work/repair`)
 - **Entrée**: `Réparation SNPA`
 - **Décisions**:
   - ✅ **OK** → `Attente inspection`
   - 🚫 **NOGO** → `Exp ST Return` → **FIN**
 - **Rôle**: `admin`
 
-### 9️⃣ **Input ST** → Chemin Standard (`/work/input_st`)
+### 8️⃣ **Input ST** → Chemin Standard (`/work/input_st`)
 - **Entrée**: `Input ST`
 - **Action**: ✅ Prêt → `Attente inspection`
 - **Rôle**: `admin`
 
-### 🔟 **Inspection** → (`/work/inspection`)
+### 9️⃣ **Inspection** → (`/work/inspection`)
 - **Entrée**: `Attente inspection` ou `Attente photo RAC`
 - **Décisions**:
-  - ✅ **OK** → `Pool`
+  - ✅ **Pool OUI** → `Kardex Input`
+  - ✅ **Pool NON** → `Prison` (mise en stock spécifique)
   - ❌ **NOK** → `Attente photo RAC`
 - **RAC Retry**:
   - ✅ **OK** → `Exp Client` → **FIN**
   - ❌ **NOK** → `Attente inspection`
-- **Rôle**: `inspection`, `admin`
-
-### 1️⃣1️⃣ **Pool** → Décision Pool (`/work/pool`)
-- **Entrée**: `Pool`
-- **Décisions**:
-  - ✅ **OUI** → `Kardex Input`
-  - ❌ **NON** → `Prison`
-- **Rôle**: `admin`
-
-### 1️⃣2️⃣ **Prison** → (`/work/prison`)
-- **Entrée**: `Prison`
-- **Décisions**:
+- **Prison (depuis Pool NON)**:
   - 🗑 **Supprimer** → **FIN**
   - 🔄 **Retry** → `Attente inspection`
-- **Rôle**: `admin`
+- **Rôle**: `inspection`, `admin`
+- **Note**: Pool et Prison sont des décisions intégrées au processus d'Inspection, ce ne sont pas des étapes indépendantes avec leur propre plan de charge.
 
-### 1️⃣3️⃣ **Kardex & Expédition** → (`/work/kardex`)
+### 🔟 **Kardex & Expédition** → (`/work/kardex`)
 - **Chemin 1: Kardex Input**
   - ✅ Échange Standard? → `Exp Externe` → **FIN**
   - ❌ → `Préparation ST`
@@ -139,7 +124,6 @@ STOCK, NOGO, Supprimé
 ```sql
 is_nogo              -- Article NOGO (redirection exp ST)
 is_repair_snpa       -- Article pour repair SNPA
-sap_created          -- Avis SAP créé
 pool_ok              -- Validation pool
 std_exchange         -- Échange standard
 prepa_st_ok          -- Préparation ST validée
@@ -147,54 +131,25 @@ prepa_st_ok          -- Préparation ST validée
 
 ---
 
-## Routes disponibles
+## Pages de charge de travail
 
-### Création & Douane
-- `POST /work/reception` - Créer article + liste `Attente douane`
-- `POST /items/<id>/douane_ok` - OK douane
-- `POST /items/<id>/douane_nok` - NOK douane
+### Visualisation des charges
+- `GET /workload/douane` - Charge Douane (rôles: `douane`, `admin`)
+- `GET /workload/photo` - Charge Photo (rôles: `photo`, `admin`)
+- `GET /workload/inspection` - Charge Inspection (rôles: `inspection`, `admin`)
+- `GET /workload/rac` - Charge RAC (rôles: `rac`, `admin`)
+- `GET /workload/emballage` - Charge Emballage (rôles: `emballage`, `admin`)
+- `GET /workload/expe` - Charge Expédition (rôles: `expedition`, `admin`)
+- `GET /workload/repair` - Charge Repair (rôles: `admin`)
+- `GET /workload/kardex` - Charge Kardex (rôles: `admin`)
+- `GET /workload/input_st` - Charge Input ST (rôles: `admin`)
+- `GET /workload/nogo` - Charge NOGO (rôles: `admin`)
 
-### Réception & Photo
-- `GET/POST /work/reception_check` - Contrôle réception
-- `POST /items/<id>/reception_ok` - OK réception
-- `POST /items/<id>/reception_nok` - NOK réception
-- `POST /items/<id>/photo_ok` - OK photo
-
-### RAC & Emballage
-- `GET/POST /work/rac` - RAC
-- `POST /items/<id>/rac_ok` - OK rac
-- `POST /items/<id>/emballage_nogo` - NOGO emballage
-- `POST /items/<id>/emballage_repair_decision` - Décision repair
-
-### SAP & Repair
-- `GET/POST /work/sap` - Attente SAP
-- `POST /items/<id>/sap_created` - SAP créé
-- `POST /items/<id>/repair_ok` - OK repair
-- `POST /items/<id>/repair_nogo` - NOGO repair
-
-### Inspection & Pool
-- `GET/POST /work/inspection` - Inspection
-- `POST /items/<id>/inspection_ok` - OK inspection
-- `POST /items/<id>/inspection_nok` - NOK inspection
-- `POST /items/<id>/rac_retry_ok` - RAC retry OK
-- `POST /items/<id>/rac_retry_nok` - RAC retry NOK
-- `GET/POST /work/pool` - Pool
-- `POST /items/<id>/pool_yes` - Pool OUI
-- `POST /items/<id>/pool_no` - Pool NON
-
-### Prison & Kardex
-- `GET/POST /work/prison` - Prison
-- `POST /items/<id>/prison_delete` - Supprimer
-- `POST /items/<id>/prison_retry` - Retry
-- `GET/POST /work/kardex` - Kardex
-- `POST /items/<id>/kardex_std_exchange` - Échange std
-- `POST /items/<id>/prepa_st_decision` - Prepa ST
-- `POST /items/<id>/appel_fo_done` - FO done
-- `POST /items/<id>/kardex_output_final` - Finaliser
-
-### Input ST
-- `GET/POST /work/input_st` - Input ST
-- `POST /items/<id>/input_st_done` - Done
+### Autres pages
+- `GET /manager_dashboard` - Dashboard Manager (rôles: `manager`, `admin`)
+- `GET /robot_status` - Statut Robot MiR (rôles: `admin`, `photo`, `inspection`, `emballage`)
+- `GET /admin_users` - Gestion Utilisateurs (rôles: `admin`)
+- `GET /archives` - Archives (rôles: `admin`, `emballage`, `inspection`)
 
 ---
 
@@ -205,7 +160,7 @@ prepa_st_ok          -- Préparation ST validée
 id, sku, pn, description, photo_path, size, status,
 active, st_repair, repair_snpa, hors_gabarit, location_id,
 avis_no, order_no, bl_no, created_at, updated_at,
-is_nogo, is_repair_snpa, sap_created, 
+is_nogo, is_repair_snpa, 
 pool_ok, std_exchange, prepa_st_ok
 ```
 
@@ -231,7 +186,8 @@ La BD s'auto-initialise avec :
 - **Historique**: Tous les changements sont tracés dans la table `movement`
 - **Part Number (PN)**: Champ textuel pour identifier les articles
 - **Boucles**: Plusieurs niveaux de retry (photo RAC, prison, etc.)
+- **État actuel**: Les routes de traitement (`/work/*`) retournent 404. L'application affiche désormais les charges de travail via les pages `/workload/*` pour visualisation uniquement.
 
 ---
 
-**Dernière mise à jour**: 2026-03-04
+**Dernière mise à jour**: 2026-03-23

@@ -155,7 +155,8 @@ def create_app():
             kind TEXT NOT NULL CHECK(kind IN ('SOL','ETAGERE','POSTE')),
             capacity INTEGER,
             size TEXT,
-            active INTEGER NOT NULL DEFAULT 1
+            active INTEGER NOT NULL DEFAULT 1,
+            chariot_status TEXT DEFAULT 'libre'
         );
         """)
         db.execute(f"""
@@ -209,6 +210,17 @@ def create_app():
             db.execute("ALTER TABLE location ADD COLUMN size TEXT")
         if not col_exists('location', 'active'):
             db.execute("ALTER TABLE location ADD COLUMN active INTEGER NOT NULL DEFAULT 1")
+        if not col_exists('location', 'chariot_status'):
+            try:
+                db.execute("ALTER TABLE location ADD COLUMN chariot_status TEXT DEFAULT 'libre'")
+                db.commit()
+                # Initialiser le statut pour les chariots SOL
+                db.execute("UPDATE location SET chariot_status='libre' WHERE kind='SOL' AND chariot_status IS NULL")
+                db.commit()
+            except Exception as e:
+                print(f"[MIGRATION] Erreur ajout chariot_status: {e}")
+                db.execute("ROLLBACK")
+                db.commit()
 
         if not col_exists('item', 'active'):
             db.execute("ALTER TABLE item ADD COLUMN active INTEGER NOT NULL DEFAULT 1")
@@ -250,77 +262,79 @@ def create_app():
             db.execute("BEGIN;")
             db.execute("ALTER TABLE item RENAME TO item_old;")
 
-        # Nouvelle table 'item' avec CHECK étendu
-        db.execute(f"""
-        CREATE TABLE item(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sku TEXT NOT NULL,
-            pn TEXT,
-            description TEXT,
-            photo_path TEXT,
-            size TEXT CHECK(size IN ('GRAND','PETIT') OR size IS NULL),
-            status TEXT NOT NULL CHECK(status IN ({status_check})),
-            active INTEGER NOT NULL DEFAULT 1,
-            st_repair INTEGER NOT NULL DEFAULT 0,
-            repair_snpa INTEGER NOT NULL DEFAULT 0,
-            hors_gabarit INTEGER NOT NULL DEFAULT 0,
-            location_id INTEGER,
-            avis_no TEXT,
-            order_no TEXT,
-            bl_no TEXT,
-            is_nogo INTEGER NOT NULL DEFAULT 0,
-            is_repair_snpa INTEGER NOT NULL DEFAULT 0,
-            sap_created INTEGER NOT NULL DEFAULT 0,
-            pool_ok INTEGER NOT NULL DEFAULT 0,
-            std_exchange INTEGER NOT NULL DEFAULT 0,
-            prepa_st_ok INTEGER NOT NULL DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(location_id) REFERENCES location(id) ON DELETE SET NULL
-        );
-        """)
+            # Nouvelle table 'item' avec CHECK étendu
+            db.execute(f"""
+            CREATE TABLE item(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sku TEXT NOT NULL,
+                pn TEXT,
+                description TEXT,
+                photo_path TEXT,
+                size TEXT CHECK(size IN ('GRAND','PETIT') OR size IS NULL),
+                status TEXT NOT NULL CHECK(status IN ({status_check})),
+                active INTEGER NOT NULL DEFAULT 1,
+                st_repair INTEGER NOT NULL DEFAULT 0,
+                repair_snpa INTEGER NOT NULL DEFAULT 0,
+                hors_gabarit INTEGER NOT NULL DEFAULT 0,
+                location_id INTEGER,
+                avis_no TEXT,
+                order_no TEXT,
+                bl_no TEXT,
+                is_nogo INTEGER NOT NULL DEFAULT 0,
+                is_repair_snpa INTEGER NOT NULL DEFAULT 0,
+                sap_created INTEGER NOT NULL DEFAULT 0,
+                pool_ok INTEGER NOT NULL DEFAULT 0,
+                std_exchange INTEGER NOT NULL DEFAULT 0,
+                prepa_st_ok INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(location_id) REFERENCES location(id) ON DELETE SET NULL
+            );
+            """)
 
-        # Migration des données + mapping anciens statuts
-        db.execute("""
-        INSERT INTO item(
-            id, sku, pn, description, photo_path, size,
-            status, active, st_repair, repair_snpa, hors_gabarit,
-            location_id, avis_no, order_no, bl_no,
-            created_at, updated_at
-        )
-        SELECT
-            id,
-            sku,
-            NULL,
-            description,
-            photo_path,
-            size,
-            CASE status
-                WHEN 'RECU'        THEN 'Attente photo'
-                WHEN 'PHOTO'       THEN 'Poste photo'
-                WHEN 'INSPECTION'  THEN 'Attente inspection'
-                WHEN 'EMBALLAGE'   THEN 'Attente emballage'
-                WHEN 'STOCK'       THEN 'STOCK'
-                ELSE 'Attente photo'
-            END,
-            COALESCE(active,1),
-            COALESCE(st_repair,0),
-            COALESCE(repair_snpa,0),
-            0,
-            location_id,
-            avis_no,
-            order_no,
-            bl_no,
-            created_at,
-            updated_at
-        FROM item_old;
-        """)
+            # Migration des données + mapping anciens statuts
+            db.execute("""
+            INSERT INTO item(
+                id, sku, pn, description, photo_path, size,
+                status, active, st_repair, repair_snpa, hors_gabarit,
+                location_id, avis_no, order_no, bl_no,
+                created_at, updated_at
+            )
+            SELECT
+                id,
+                sku,
+                NULL,
+                description,
+                photo_path,
+                size,
+                CASE status
+                    WHEN 'RECU'        THEN 'Attente photo'
+                    WHEN 'PHOTO'       THEN 'Poste photo'
+                    WHEN 'INSPECTION'  THEN 'Attente inspection'
+                    WHEN 'EMBALLAGE'   THEN 'Attente emballage'
+                    WHEN 'STOCK'       THEN 'STOCK'
+                    ELSE 'Attente photo'
+                END,
+                COALESCE(active,1),
+                COALESCE(st_repair,0),
+                COALESCE(repair_snpa,0),
+                0,
+                location_id,
+                avis_no,
+                order_no,
+                bl_no,
+                created_at,
+                updated_at
+            FROM item_old;
+            """)
 
-        db.execute("DROP TABLE item_old;")
-        db.execute("COMMIT;")
-        db.execute("PRAGMA foreign_keys=ON;")
-        db.commit()
-        print("[MIGRATION] OK — Nouveau schéma appliqué.")
+            db.execute("DROP TABLE item_old;")
+            db.execute("COMMIT;")
+            db.execute("PRAGMA foreign_keys=ON;")
+            db.commit()
+            print("[MIGRATION] OK — Nouveau schéma appliqué.")
+        else:
+            print("[MIGRATION] Ancien schéma non détecté : pas de migration item nécessaire.")
 
     # 4) Seed emplacements si vide ------------------------------------------
         c = db.execute("SELECT COUNT(*) AS c FROM location").fetchone()['c']
@@ -401,6 +415,9 @@ def create_app():
             db.commit()
             print("[WARN] admin/ChangeMe! créé automatiquement")
 
+
+    # Call init_db to create tables and seed data
+    init_db()
 
     # helpers basic
     def item_by_id(item_id): return get_db().execute('SELECT * FROM item WHERE id=?',(item_id,)).fetchone()
@@ -535,7 +552,7 @@ def create_app():
         if q:
             base_sql += " AND (i.sku LIKE ? OR i.description LIKE ? OR i.avis_no LIKE ? OR i.order_no LIKE ? OR i.bl_no LIKE ?)"; params.extend([f'%{q}%']*5)
         base_sql += " ORDER BY i.created_at DESC LIMIT 200"; rows=db.execute(base_sql, tuple(params)).fetchall()
-        return render_template('items.html', items=rows, q=q)
+        return abort(404)
 
     @app.route('/items/<int:item_id>')
     @login_required
@@ -549,7 +566,7 @@ def create_app():
           LEFT JOIN location lt ON m.to_location_id=lt.id
           WHERE m.item_id=? ORDER BY m.created_at DESC
         """,(item_id,)).fetchall()
-        sol_free=free_sol_slots(); return render_template('item_detail.html', it=it, loc=loc, moves=moves, sol_free=sol_free)
+        sol_free=free_sol_slots(); return abort(404)
 
     @app.route('/uploads/<path:filename>')
     @login_required
@@ -572,7 +589,7 @@ def create_app():
         sql=base
         if where: sql += ' WHERE ' + ' AND '.join(where)
         sql += ' ORDER BY l.kind, l.code'
-        locs=db.execute(sql, tuple(params)).fetchall(); return render_template('locations.html', locations=locs, kind=kind, show_all=show_all)
+        locs=db.execute(sql, tuple(params)).fetchall(); return abort(404)
 
     # --- Admin users (simple) ---
     @app.route('/admin/users')
@@ -754,6 +771,130 @@ def create_app():
 
         return render_template("manager_dashboard.html", encours=encours)
 
+    # -------------------- WORKLOAD VIEWS --------------------
+    @app.route('/storage-map')
+    @login_required
+    def storage_map():
+        """Représentation graphique des emplacements de stockage"""
+        db = get_db()
+        locations = db.execute("""
+            SELECT id, code, name, kind, capacity, size, active, COALESCE(chariot_status, 'libre') AS chariot_status
+            FROM location
+            ORDER BY kind, code
+        """).fetchall()
+        
+        # Grouper par kind
+        by_kind = {'SOL': {'GRAND': [], 'PETIT': []}, 'ETAGERE': [], 'POSTE': []}
+        for loc in locations:
+            if loc['kind'] == 'SOL':
+                by_kind['SOL'][loc['size']].append(loc)
+            else:
+                by_kind[loc['kind']].append(loc)
+        
+        return render_template('storage_map.html', locations=locations, by_kind=by_kind)
+
+    @app.route('/storage/<int:location_id>/status', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def update_chariot_status(location_id):
+        """Mettre à jour le statut d'un chariot"""
+        db = get_db()
+        loc = db.execute("SELECT * FROM location WHERE id=?", (location_id,)).fetchone()
+        
+        if not loc or loc['kind'] != 'SOL':
+            return abort(404)
+        
+        new_status = request.form.get('status')
+        if new_status not in ['libre', 'indisponible_vide', 'indisponible_plein']:
+            return abort(400)
+        
+        db.execute("UPDATE location SET chariot_status=? WHERE id=?", (new_status, location_id))
+        db.commit()
+        
+        flash(f"Statut du chariot {loc['code']} mis à jour : {new_status}", 'ok')
+        return redirect(url_for('storage_map'))
+    @app.route('/workload/douane')
+    @login_required
+    @role_required('douane', 'admin')
+    def workload_douane():
+        db = get_db()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente douane' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        return render_template('workload_douane.html', items=items)
+
+    @app.route('/workload/photo')
+    @login_required
+    @role_required('photo', 'admin')
+    def workload_photo():
+        db = get_db()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente photo' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        return render_template('workload_photo.html', items=items)
+
+    @app.route('/workload/inspection')
+    @login_required
+    @role_required('inspection', 'admin')
+    def workload_inspection():
+        db = get_db()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente inspection' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        return render_template('workload_inspection.html', items=items)
+
+    @app.route('/workload/rac')
+    @login_required
+    @role_required('rac', 'admin')
+    def workload_rac():
+        db = get_db()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente rac' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        return render_template('workload_rac.html', items=items)
+
+    @app.route('/workload/emballage')
+    @login_required
+    @role_required('emballage', 'admin')
+    def workload_emballage():
+        db = get_db()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente emballage' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        return render_template('workload_emballage.html', items=items)
+
+    @app.route('/workload/expe')
+    @login_required
+    @role_required('expedition', 'admin')
+    def workload_expe():
+        db = get_db()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente expe' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        return render_template('workload_expe.html', items=items)
+
+    @app.route('/workload/repair')
+    @login_required
+    @role_required('admin')
+    def workload_repair():
+        db = get_db()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Repair' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        return render_template('workload_repair.html', items=items)
+
+
+
+    @app.route('/workload/kardex')
+    @login_required
+    @role_required('admin')
+    def workload_kardex():
+        db = get_db()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Kardex' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        return render_template('workload_kardex.html', items=items)
+
+    @app.route('/workload/input_st')
+    @login_required
+    @role_required('admin')
+    def workload_input_st():
+        db = get_db()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Input ST' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        return render_template('workload_input_st.html', items=items)
+
+    @app.route('/workload/nogo')
+    @login_required
+    @role_required('admin')
+    def workload_nogo():
+        db = get_db()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='NOGO' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        return render_template('workload_nogo.html', items=items)
+
     # -------------------- WORKFLOWS --------------------
     # 1. RÉCEPTION - Input Client
     @app.route('/work/reception', methods=['GET', 'POST'])
@@ -769,7 +910,7 @@ def create_app():
                 WHERE i.active=1 AND i.status='Attente douane'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_reception.html', items=items)
+            return abort(404)
         
         # POST: Créer un nouvel item en réception
         sku = (request.form.get('sku') or '').strip()
@@ -820,7 +961,7 @@ def create_app():
                 WHERE i.active=1 AND i.status='Attente douane'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_douane.html', items=items)
+            return abort(404)
     
     @app.route('/items/<int:item_id>/douane_ok', methods=['POST'])
     @login_required
@@ -869,7 +1010,7 @@ def create_app():
                 WHERE i.active=1 AND i.status='Attente réception'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_reception_check.html', items=items)
+            return abort(404)
     
     @app.route('/items/<int:item_id>/reception_ok', methods=['POST'])
     @login_required
@@ -918,7 +1059,7 @@ def create_app():
                 WHERE i.active=1 AND i.status='Poste photo'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_photo.html', items=items)
+            return abort(404)
     
     @app.route('/items/<int:item_id>/photo_ok', methods=['POST'])
     @login_required
@@ -951,7 +1092,7 @@ def create_app():
                 WHERE i.active=1 AND i.status='Attente RAC'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_rac.html', items=items)
+            return abort(404)
     
     @app.route('/items/<int:item_id>/rac_ok', methods=['POST'])
     @login_required
@@ -984,7 +1125,7 @@ def create_app():
                 WHERE i.active=1 AND i.status='Poste emballage'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_emballage.html', items=items)
+            return abort(404)
     
     @app.route('/items/<int:item_id>/emballage_nogo', methods=['POST'])
     @login_required
@@ -1044,7 +1185,7 @@ def create_app():
                 WHERE i.active=1 AND i.status='Attente SAP'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_sap.html', items=items)
+            return abort(404)
     
     @app.route('/items/<int:item_id>/sap_created', methods=['POST'])
     @login_required
@@ -1078,7 +1219,7 @@ def create_app():
                 WHERE i.active=1 AND i.status='Réparation SNPA'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_repair.html', items=items)
+            return abort(404)
     
     @app.route('/items/<int:item_id>/repair_ok', methods=['POST'])
     @login_required
@@ -1129,7 +1270,7 @@ def create_app():
                 WHERE i.active=1 AND i.status IN ('Attente inspection', 'Attente photo RAC')
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_inspection.html', items=items)
+            return abort(404)
     
     @app.route('/items/<int:item_id>/inspection_ok', methods=['POST'])
     @login_required
@@ -1214,7 +1355,7 @@ def create_app():
                 WHERE i.active=1 AND i.status='Pool'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_pool.html', items=items)
+            return abort(404)
     
     @app.route('/items/<int:item_id>/pool_yes', methods=['POST'])
     @login_required
@@ -1265,7 +1406,7 @@ def create_app():
                 WHERE i.active=1 AND i.status='Prison'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_prison.html', items=items)
+            return abort(404)
     
     @app.route('/items/<int:item_id>/prison_delete', methods=['POST'])
     @login_required
@@ -1314,7 +1455,7 @@ def create_app():
                 WHERE i.active=1 AND i.status IN ('Kardex Input', 'Préparation ST', 'Kardex Output')
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_kardex.html', items=items)
+            return abort(404)
     
     @app.route('/items/<int:item_id>/kardex_std_exchange', methods=['POST'])
     @login_required
@@ -1438,7 +1579,7 @@ def create_app():
                 WHERE i.active=1 AND i.status='Input ST'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_input_st.html', items=items)
+            return abort(404)
     
     @app.route('/items/<int:item_id>/input_st_done', methods=['POST'])
     @login_required
@@ -1483,7 +1624,7 @@ def create_app():
                 WHERE i.active=1 AND i.status='Attente départ T2'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return render_template('work_expe.html', client=client, st=st, t2=t2)
+            return abort(404)
 
     @app.route('/items/<int:item_id>/expe_ship', methods=['POST'])
     @login_required
@@ -1519,7 +1660,7 @@ def create_app():
     @role_required('admin', 'manager')
     def return_st_workflow():
         """Display the Return ST supply chain workflow diagram"""
-        return render_template('return_st_workflow.html')
+        return abort(404)
 
     # ===================== ROBOT MiR ===============================
     from mir_client import MiRClient
@@ -1596,7 +1737,7 @@ def create_app():
 
         rows = db.execute(sql, params).fetchall()
 
-        return render_template("archives.html", items=rows, q=q)
+        return abort(404)
 
         @app.route('/archives/export')
         @login_required
@@ -1679,7 +1820,7 @@ def create_app():
                 "updated_at": row["updated_at"]
             })
 
-        return render_template("Global_WIP.html", items=enriched)
+        return abort(404)
 
     return app
 
