@@ -30,17 +30,21 @@ ROLE_PERMISSIONS = {
 
     # Flux principal
     "work_reception" : ["admin", "reception"],
-    "work_reception_check" : ["admin", "reception"],
+    # "work_reception_check" : ["admin", "reception"],  # Supprimé - réception directe
+    "work_induction": ["admin", "induction"],
+    "work_depart_atelier": ["admin", "atelier"],
+    "work_retour_atelier": ["admin", "atelier"],
+    # "workload_reception": ["admin", "reception"],  # Supprimé - réception directe
     "work_douane": ["admin", "douane"],
     "work_photo": ["admin", "photo"],
     "work_inspection": ["admin", "inspection"],
     "work_rac": ["admin", "rac"],
     "work_emballage": ["admin", "emballage"],
     "work_sap": ["admin", "reception"],
-    "work_repair": ["admin"],
-    "work_pool": ["admin"],
-    "work_prison": ["admin"],
-    "work_kardex": ["admin"],
+    "work_repair": ["admin", "inspection"],
+    "work_pool": ["admin", "inspection"],
+    "work_prison": ["admin", "inspection"],
+    "work_kardex": ["admin", "inspection"],
     "work_input_st": ["admin"],
     "work_expe": ["admin", "expedition"],
 
@@ -115,34 +119,22 @@ def create_app():
 
         # 0) Statuts officiels du workflow strict  -----------------------------
         statuses = (
-            # Phase Réception
-            'Attente douane',
-            'Attente réception',
-            'Poste photo',
-            'Attente RAC',
-            
-            # Phase Emballage & Réparation
-            'Poste emballage',
-            'Attente SAP',
-            'Réparation SNPA',
-            'Attente inspection',
-            'Attente photo RAC',
-            
-            # Phase Finalisation
-            'Pool',
+            'Attente Douane',
+            'Attente Photo',
+            'Attente Inspection',
+            'Attente Induction',
+            'NOGO',
+            'Depart Atelier',
+            'Attente Emballage',
+            'Attente Expedition',
+            'Attente Expe Client',
+            'Attente Expe ST',
+            'Retour Atelier',
             'Prison',
-            'Kardex Input',
-            'Kardex Output',
-            'Préparation ST',
-            'Appel FO',
-            'Échange Standard',
-            'Exp Externe',
+            'Disponible',
             'Exp ST Return',
-            'Exp Client',
-            'Dossier Induction',
-            
-            # Statuts finaux
-            'STOCK', 'NOGO', 'Supprimé'
+            'ARCHIVE',
+            'STOCK'
         )
         status_check = ",".join([f"'{s}'" for s in statuses])
 
@@ -165,6 +157,9 @@ def create_app():
             sku TEXT NOT NULL,
             pn TEXT,
             description TEXT,
+            serial_number TEXT,
+            tsn INTEGER,
+            csn INTEGER,
             photo_path TEXT,
             size TEXT CHECK(size IN ('GRAND','PETIT') OR size IS NULL),
             status TEXT NOT NULL CHECK(status IN ({status_check})),
@@ -172,6 +167,11 @@ def create_app():
             st_repair INTEGER NOT NULL DEFAULT 0,
             repair_snpa INTEGER NOT NULL DEFAULT 0,
             hors_gabarit INTEGER NOT NULL DEFAULT 0,
+            return_st INTEGER NOT NULL DEFAULT 0,
+            int_repair_capa INTEGER NOT NULL DEFAULT 0,
+            repair_int INTEGER NOT NULL DEFAULT 0,
+            prepa_st INTEGER NOT NULL DEFAULT 0,
+            photo_ins INTEGER NOT NULL DEFAULT 0,
             location_id INTEGER,
             avis_no TEXT,
             order_no TEXT,
@@ -228,6 +228,12 @@ def create_app():
             db.execute("ALTER TABLE item ADD COLUMN st_repair INTEGER NOT NULL DEFAULT 0")
         if not col_exists('item', 'repair_snpa'):
             db.execute("ALTER TABLE item ADD COLUMN repair_snpa INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'serial_number'):
+            db.execute("ALTER TABLE item ADD COLUMN serial_number TEXT")
+        if not col_exists('item', 'tsn'):
+            db.execute("ALTER TABLE item ADD COLUMN tsn INTEGER")
+        if not col_exists('item', 'csn'):
+            db.execute("ALTER TABLE item ADD COLUMN csn INTEGER")
         if not col_exists('item', 'pn'):
             db.execute("ALTER TABLE item ADD COLUMN pn TEXT")
         if not col_exists('item', 'is_nogo'):
@@ -244,6 +250,19 @@ def create_app():
             db.execute("ALTER TABLE item ADD COLUMN prepa_st_ok INTEGER NOT NULL DEFAULT 0")
         if not col_exists('item', 'hors_gabarit'):
             db.execute("ALTER TABLE item ADD COLUMN hors_gabarit INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'return_st'):
+            db.execute("ALTER TABLE item ADD COLUMN return_st INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'int_repair_capa'):
+            db.execute("ALTER TABLE item ADD COLUMN int_repair_capa INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'repair_int'):
+            db.execute("ALTER TABLE item ADD COLUMN repair_int INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'prepa_st'):
+            db.execute("ALTER TABLE item ADD COLUMN prepa_st INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'photo_ins'):
+            db.execute("ALTER TABLE item ADD COLUMN photo_ins INTEGER NOT NULL DEFAULT 0")
+            db.execute("ALTER TABLE item ADD COLUMN induction INTEGER NOT NULL DEFAULT 0")
+            db.execute("ALTER TABLE item ADD COLUMN induction_ok INTEGER NOT NULL DEFAULT 0")
+            db.execute("ALTER TABLE item ADD COLUMN inspection_ok INTEGER NOT NULL DEFAULT 0")
         db.commit()
 
     # 3) MIGRATION FORCÉE (détection large de l'ancien CHECK) --------------
@@ -269,6 +288,9 @@ def create_app():
                 sku TEXT NOT NULL,
                 pn TEXT,
                 description TEXT,
+                serial_number TEXT,
+                tsn INTEGER,
+                csn INTEGER,
                 photo_path TEXT,
                 size TEXT CHECK(size IN ('GRAND','PETIT') OR size IS NULL),
                 status TEXT NOT NULL CHECK(status IN ({status_check})),
@@ -295,7 +317,7 @@ def create_app():
             # Migration des données + mapping anciens statuts
             db.execute("""
             INSERT INTO item(
-                id, sku, pn, description, photo_path, size,
+                id, sku, pn, description, serial_number, tsn, csn, photo_path, size,
                 status, active, st_repair, repair_snpa, hors_gabarit,
                 location_id, avis_no, order_no, bl_no,
                 created_at, updated_at
@@ -305,15 +327,18 @@ def create_app():
                 sku,
                 NULL,
                 description,
+                NULL,
+                NULL,
+                NULL,
                 photo_path,
                 size,
                 CASE status
-                    WHEN 'RECU'        THEN 'Attente photo'
-                    WHEN 'PHOTO'       THEN 'Poste photo'
-                    WHEN 'INSPECTION'  THEN 'Attente inspection'
-                    WHEN 'EMBALLAGE'   THEN 'Attente emballage'
+                    WHEN 'RECU'        THEN 'Attente Photo'
+                    WHEN 'PHOTO'       THEN 'Attente Induction'
+                    WHEN 'INSPECTION'  THEN 'Attente Inspection'
+                    WHEN 'EMBALLAGE'   THEN 'Attente Emballage'
                     WHEN 'STOCK'       THEN 'STOCK'
-                    ELSE 'Attente photo'
+                    ELSE 'Attente Photo'
                 END,
                 COALESCE(active,1),
                 COALESCE(st_repair,0),
@@ -417,7 +442,8 @@ def create_app():
 
 
     # Call init_db to create tables and seed data
-    init_db()
+    with app.app_context():
+        init_db()
 
     # helpers basic
     def item_by_id(item_id): return get_db().execute('SELECT * FROM item WHERE id=?',(item_id,)).fetchone()
@@ -467,6 +493,27 @@ def create_app():
         db=get_db(); db.execute('UPDATE item SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',(new_status,item_id)); db.commit()
     def _ensure_active(it):
         if not it or it['active']!=1: abort(404)
+
+    def generate_sku():
+        db = get_db()
+        row = db.execute("SELECT sku FROM item WHERE sku LIKE 'SKU-%' ORDER BY CAST(SUBSTR(sku,5) AS INTEGER) DESC LIMIT 1").fetchone()
+        if not row:
+            return 'SKU-00001'
+        last = int(row['sku'].split('-')[1])
+        return f'SKU-{last+1:05d}'
+
+    def fetch_dynamics_info(qr_url):
+        if not qr_url or 'dynamics' not in qr_url.lower():
+            return None
+        # Placeholder : si besoin, on peut faire un appel API Dynamics365 ici avec auth.
+        identifier = qr_url.rstrip('/').split('/')[-1]
+        return {
+            'sku': f'SKU-{identifier[-5:]}' if len(identifier)>=5 else None,
+            'pn': None,
+            'serial_number': None,
+            'tsn': None,
+            'csn': None
+        }
 
 # ------ Décorateur role requirement -----#
 
@@ -525,6 +572,10 @@ def create_app():
         if request.method=='POST':
             sku=(request.form.get('sku') or '').strip(); size=(request.form.get('size') or 'PETIT').upper()
             pn=(request.form.get('pn') or '').strip() or None
+            serial_number=(request.form.get('serial_number') or '').strip() or None
+            tsn_raw=(request.form.get('tsn') or '').strip(); csn_raw=(request.form.get('csn') or '').strip()
+            tsn=int(tsn_raw) if tsn_raw.isdigit() else None
+            csn=int(csn_raw) if csn_raw.isdigit() else None
             sous_douane=(request.form.get('sous_douane')=='on'); st_repair=1 if (request.form.get('st_repair')=='on') else 0
             repair_snpa=1 if (request.form.get('repair_snpa')=='on') else 0
             hors_gabarit=1 if (request.form.get('hors_gabarit')=='on') else 0
@@ -540,12 +591,12 @@ def create_app():
             status='Attente douane' if sous_douane else 'Attente photo'
             db.execute("""
                 INSERT INTO item(
-                    sku, pn, description, size,
+                    sku, pn, description, serial_number, tsn, csn, size,
                     avis_no, order_no, bl_no,
                     status, st_repair, repair_snpa, hors_gabarit,
                     active, location_id
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-                    """, (sku, pn, desc, size, avis, od, bl, status, st_repair, repair_snpa, hors_gabarit, 1, None))
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    """, (sku, pn, desc, serial_number, tsn, csn, size, avis, od, bl, status, st_repair, repair_snpa, hors_gabarit, 1, None))
             new_id=db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']; db.commit()
             flash(f'Article créé {sku} — statut: {status}','ok'); return redirect(url_for('item_detail', item_id=new_id))
         q=(request.args.get('q') or '').strip(); base_sql="SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.active=1"; params=[]
@@ -813,6 +864,12 @@ def create_app():
         
         flash(f"Statut du chariot {loc['code']} mis à jour : {new_status}", 'ok')
         return redirect(url_for('storage_map'))
+    # @app.route('/workload/reception')  # Supprimé - réception directe sans encours
+    # @login_required
+    # @role_required('reception', 'admin')
+    # def workload_reception():
+    #     # Code supprimé - réception directe
+
     @app.route('/workload/douane')
     @login_required
     @role_required('douane', 'admin')
@@ -904,50 +961,112 @@ def create_app():
         db = get_db()
         
         if request.method == 'GET':
-            items = db.execute("""
-                SELECT i.*, l.code AS loc_code
-                FROM item i LEFT JOIN location l ON i.location_id=l.id
-                WHERE i.active=1 AND i.status='Attente douane'
-                ORDER BY i.created_at ASC
-            """).fetchall()
-            return abort(404)
+            return render_template('work_reception.html')
         
         # POST: Créer un nouvel item en réception
         sku = (request.form.get('sku') or '').strip()
+        qrcode_url = (request.form.get('qrcode_url') or '').strip() or None
         pn = (request.form.get('pn') or '').strip() or None
-        description = (request.form.get('description') or '').strip()
+        serial_number = (request.form.get('serial_number') or '').strip() or None
+        tsn_raw = (request.form.get('tsn') or '').strip()
+        csn_raw = (request.form.get('csn') or '').strip()
+        tsn = int(tsn_raw) if tsn_raw.isdigit() else None
+        csn = int(csn_raw) if csn_raw.isdigit() else None
         size = (request.form.get('size') or 'PETIT').upper()
         avis = (request.form.get('avis_no') or '').strip() or None
         od = (request.form.get('order_no') or '').strip() or None
         bl = (request.form.get('bl_no') or '').strip() or None
+        return_st = 1 if (request.form.get('return_st') == 'on') else 0
+        sous_douane = 1 if (request.form.get('sous_douane') == 'on') else 0
         st_repair = 1 if (request.form.get('st_repair') == 'on') else 0
-        repair_snpa = 1 if (request.form.get('repair_snpa') == 'on') else 0
-        hors_gabarit = 1 if (request.form.get('hors_gabarit') == 'on') else 0
+        repair_snpa = 0  # SNPA décision en induction, pas à la création
         
         if not sku:
             flash('SKU requis', 'error')
             return redirect(url_for('work_reception'))
         
-        if size not in ('GRAND', 'PETIT'):
-            flash('Taille requise (GRAND/PETIT)', 'error')
+        if size not in ('GRAND', 'PETIT', 'HORS GABARIT'):
+            flash('Taille requise (GRAND/PETIT/HORS GABARIT)', 'error')
             return redirect(url_for('work_reception'))
+
+        # Remplissage depuis Dynamics365 (QR Code) si disponible
+        dynamics_info = fetch_dynamics_info(qrcode_url)
+        if dynamics_info:
+            if not sku and dynamics_info.get('sku'):
+                sku = dynamics_info.get('sku')
+            if not pn and dynamics_info.get('pn'):
+                pn = dynamics_info.get('pn')
+            if not serial_number and dynamics_info.get('serial_number'):
+                serial_number = dynamics_info.get('serial_number')
+            if tsn is None and dynamics_info.get('tsn') is not None:
+                tsn = dynamics_info.get('tsn')
+            if csn is None and dynamics_info.get('csn') is not None:
+                csn = dynamics_info.get('csn')
+
+        # Si le SKU est manquant : auto-génération
+        if not sku:
+            sku = generate_sku()
+
+        # Logique de réception : création ou récupération selon return_st
+        if return_st == 1:
+            # RETOUR SOUS-TRAITANCE : récupérer l'item existant
+            existing_item = db.execute("""
+                SELECT id, status FROM item 
+                WHERE sku = ? AND active = 1
+                ORDER BY created_at DESC LIMIT 1
+            """, (sku,)).fetchone()
+            
+            if not existing_item:
+                flash(f'Erreur: Aucun article trouvé avec SKU {sku} pour retour ST', 'error')
+                return redirect(url_for('work_reception'))
+            
+            item_id = existing_item['id']
+            
+            # Appliquer les règles workflow (TL12 OK → TL5)
+            if sous_douane == 1:
+                new_status = 'Attente Douane'
+            else:
+                new_status = 'Attente Inspection'
+            
+            # Mettre à jour l'item existant
+            db.execute("""
+                UPDATE item SET 
+                    status = ?, 
+                    sous_douane = ?,
+                    st_repair = ?,
+                    repair_snpa = ?,
+                    serial_number = ?,
+                    tsn = ?,
+                    csn = ?,
+                    updated_at = datetime('now')
+                WHERE id = ?
+            """, (new_status, sous_douane, st_repair, repair_snpa, serial_number, tsn, csn, item_id))
+            
+            _movement(item_id, 'RECEPTION_RETURN_ST', from_id=None)
+            flash(f'Article {sku} récupéré (Retour ST) → {new_status}', 'ok')
+            
+        else:
+            # NOUVEL ARTICLE : création normale
+            # Appliquer les règles workflow (TL12 NOK → PR1 New_Item → TL5)
+            if sous_douane == 1:
+                initial_status = 'Attente Douane'
+            else:
+                initial_status = 'Attente Photo'
+            
+            db.execute("""
+                INSERT INTO item(
+                    sku, pn, serial_number, tsn, csn, size,
+                    avis_no, order_no, bl_no,
+                    status, st_repair, repair_snpa, return_st,
+                    active, location_id
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """, (sku, pn, serial_number, tsn, csn, size, avis, od, bl, initial_status, st_repair, repair_snpa, return_st, 1, None))
+            
+            new_id = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+            flash(f'Article créé: {sku} (Status: {initial_status})', 'ok')
         
-        db.execute("""
-            INSERT INTO item(
-                sku, pn, description, size,
-                avis_no, order_no, bl_no,
-                status, st_repair, repair_snpa, hors_gabarit,
-                active, location_id
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-        """, (sku, pn, description, size, avis, od, bl, 'Attente douane', st_repair, repair_snpa, hors_gabarit, 1, None))
-        
-        new_id = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
         db.commit()
-        
-        flash(f'Article créé: {sku} (PN: {pn or "—"}) → Attente douane', 'ok')
-        return redirect(url_for('item_detail', item_id=new_id))
-    
-    # 2. CONTRÔLE DOUANE
+        return redirect(url_for('index'))
     @app.route('/work/douane', methods=['GET', 'POST'])
     @login_required
     @role_required('douane', 'admin')
@@ -971,13 +1090,15 @@ def create_app():
         it = item_by_id(item_id)
         if not it or it['active'] != 1:
             abort(404)
-        if it['status'] != 'Attente douane':
+        if it['status'] != 'Attente Douane':
             flash('Statut invalide pour douane', 'error')
             return redirect(url_for('work_douane'))
         
-        _set_status(item_id, 'Attente réception')
+        # TL1: Return_ST =1 ?
+        next_status = 'Attente Inspection' if it['return_st'] == 1 else 'Attente Photo'
+        _set_status(item_id, next_status)
         _movement(item_id, 'DOUANE_OK', from_id=it['location_id'])
-        flash('Douane OK → Attente réception', 'ok')
+        flash(f'Douane OK → {next_status}', 'ok')
         return redirect(url_for('work_douane'))
     
     @app.route('/items/<int:item_id>/douane_nok', methods=['POST'])
@@ -988,62 +1109,35 @@ def create_app():
         it = item_by_id(item_id)
         if not it or it['active'] != 1:
             abort(404)
-        if it['status'] != 'Attente douane':
+        if it['status'] != 'Attente Douane':
             flash('Statut invalide pour douane', 'error')
             return redirect(url_for('work_douane'))
         
+        # Déterminer le prochain statut selon Sous Douane
+        next_status = 'Attente Réparation' if it['sous_douane'] == 1 else 'Attente Emballage'
+        _set_status(item_id, next_status)
         _movement(item_id, 'DOUANE_NOK', from_id=it['location_id'])
-        flash('Douane NOK → Attente douane (retour)', 'ok')
+        flash(f'Douane NOK → {next_status}', 'nok')
         return redirect(url_for('work_douane'))
     
-    # 3. RÉCEPTION (Contrôle)
-    @app.route('/work/reception_check', methods=['GET', 'POST'])
-    @login_required
-    @role_required('reception', 'admin')
-    def work_reception_check():
-        db = get_db()
-        
-        if request.method == 'GET':
-            items = db.execute("""
-                SELECT i.*, l.code AS loc_code
-                FROM item i LEFT JOIN location l ON i.location_id=l.id
-                WHERE i.active=1 AND i.status='Attente réception'
-                ORDER BY i.created_at ASC
-            """).fetchall()
-            return abort(404)
-    
-    @app.route('/items/<int:item_id>/reception_ok', methods=['POST'])
-    @login_required
-    @role_required('reception', 'admin')
-    def reception_ok(item_id):
-        db = get_db()
-        it = item_by_id(item_id)
-        if not it or it['active'] != 1:
-            abort(404)
-        if it['status'] != 'Attente réception':
-            flash('Statut invalide pour réception', 'error')
-            return redirect(url_for('work_reception_check'))
-        
-        _set_status(item_id, 'Poste photo')
-        _movement(item_id, 'RECEPTION_OK', from_id=it['location_id'])
-        flash('Réception OK → Poste photo', 'ok')
-        return redirect(url_for('work_reception_check'))
-    
-    @app.route('/items/<int:item_id>/reception_nok', methods=['POST'])
-    @login_required
-    @role_required('reception', 'admin')
-    def reception_nok(item_id):
-        db = get_db()
-        it = item_by_id(item_id)
-        if not it or it['active'] != 1:
-            abort(404)
-        if it['status'] != 'Attente réception':
-            flash('Statut invalide pour réception', 'error')
-            return redirect(url_for('work_reception_check'))
-        
-        _movement(item_id, 'RECEPTION_NOK', from_id=it['location_id'])
-        flash('Réception NOK → Attente réception (retour)', 'ok')
-        return redirect(url_for('work_reception_check'))
+    # 3. RÉCEPTION (Contrôle) - SUPPRIMÉ : Réception directe sans encours
+    # @app.route('/work/reception_check', methods=['GET', 'POST'])
+    # @login_required
+    # @role_required('reception', 'admin')
+    # def work_reception_check():
+    #     # Code supprimé - réception directe
+
+    # @app.route('/items/<int:item_id>/reception_ok', methods=['POST'])
+    # @login_required
+    # @role_required('reception', 'admin')
+    # def reception_ok(item_id):
+    #     # Code supprimé - réception directe
+
+    # @app.route('/items/<int:item_id>/reception_nok', methods=['POST'])
+    # @login_required
+    # @role_required('reception', 'admin')
+    # def reception_nok(item_id):
+    #     # Code supprimé - réception directe
     
     # 4. POSTE PHOTO
     @app.route('/work/photo', methods=['GET', 'POST'])
@@ -1056,7 +1150,7 @@ def create_app():
             items = db.execute("""
                 SELECT i.*, l.code AS loc_code
                 FROM item i LEFT JOIN location l ON i.location_id=l.id
-                WHERE i.active=1 AND i.status='Poste photo'
+                WHERE i.active=1 AND i.status='Attente Photo'
                 ORDER BY i.created_at ASC
             """).fetchall()
             return abort(404)
@@ -1069,16 +1163,151 @@ def create_app():
         it = item_by_id(item_id)
         if not it or it['active'] != 1:
             abort(404)
-        if it['status'] != 'Poste photo':
+        if it['status'] != 'Attente Photo':
             flash('Statut invalide pour photo', 'error')
             return redirect(url_for('work_photo'))
         
-        _set_status(item_id, 'Attente RAC')
+        # TL7: Photo_Ins =1 ?
+        next_status = 'Prison' if it['photo_ins'] == 1 else 'Attente Induction'
+        _set_status(item_id, next_status)
         _movement(item_id, 'PHOTO_OK', from_id=it['location_id'])
-        flash('Photo OK → Attente RAC', 'ok')
+        flash(f'Photo OK → {next_status}', 'ok')
         return redirect(url_for('work_photo'))
     
-    # 5. ATTENTE RAC / POSTE EMBALLAGE
+    # 4. INDUCTION
+    @app.route('/work/induction', methods=['GET', 'POST'])
+    @login_required
+    @role_required('induction', 'admin')
+    def work_induction():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Attente Induction'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return abort(404)
+    
+    @app.route('/items/<int:item_id>/induction_ok', methods=['POST'])
+    @login_required
+    @role_required('induction', 'admin')
+    def induction_ok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Attente Induction':
+            flash('Statut invalide pour induction', 'error')
+            return redirect(url_for('work_induction'))
+        
+        # TL2: Induction_OK ? OK: TL3 Internal_Repair ?
+        if it['induction_ok'] == 1:
+            # TL3: Internal_Repair ? (int_repair_capa)
+            if it['int_repair_capa'] == 1:
+                next_status = 'Depart Atelier'
+            else:
+                # TL4: Process_Mixte ? (repair_int)
+                next_status = 'Depart Atelier' if it['repair_int'] == 1 else 'Attente Emballage'
+        else:
+            next_status = 'NOGO'
+        
+        _set_status(item_id, next_status)
+        _movement(item_id, 'INDUCTION_OK', from_id=it['location_id'])
+        flash(f'Induction OK → {next_status}', 'ok')
+        return redirect(url_for('work_induction'))
+    
+    @app.route('/items/<int:item_id>/induction_nok', methods=['POST'])
+    @login_required
+    @role_required('induction', 'admin')
+    def induction_nok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Attente Induction':
+            flash('Statut invalide pour induction', 'error')
+            return redirect(url_for('work_induction'))
+        
+        _set_status(item_id, 'NOGO')
+        _movement(item_id, 'INDUCTION_NOK', from_id=it['location_id'])
+        flash('Induction NOK → NOGO', 'nok')
+        return redirect(url_for('work_induction'))
+    
+    # 5. DEPART ATELIER
+    @app.route('/work/depart_atelier', methods=['GET', 'POST'])
+    @login_required
+    @role_required('atelier', 'admin')
+    def work_depart_atelier():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Depart Atelier'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return abort(404)
+    
+    @app.route('/items/<int:item_id>/depart_atelier_ok', methods=['POST'])
+    @login_required
+    @role_required('atelier', 'admin')
+    def depart_atelier_ok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Depart Atelier':
+            flash('Statut invalide pour depart atelier', 'error')
+            return redirect(url_for('work_depart_atelier'))
+        
+        _set_status(item_id, 'Retour Atelier')
+        _movement(item_id, 'DEPART_ATELIER_OK', from_id=it['location_id'])
+        flash('Depart Atelier OK → Retour Atelier', 'ok')
+        return redirect(url_for('work_depart_atelier'))
+    
+    # 6. RETOUR ATELIER
+    @app.route('/work/retour_atelier', methods=['GET', 'POST'])
+    @login_required
+    @role_required('atelier', 'admin')
+    def work_retour_atelier():
+        db = get_db()
+        
+        if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Retour Atelier'
+                ORDER BY i.created_at ASC
+            """).fetchall()
+            return abort(404)
+    
+    @app.route('/items/<int:item_id>/retour_atelier_ok', methods=['POST'])
+    @login_required
+    @role_required('atelier', 'admin')
+    def retour_atelier_ok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Retour Atelier':
+            flash('Statut invalide pour retour atelier', 'error')
+            return redirect(url_for('work_retour_atelier'))
+        
+        # TL9: Int_Repair_Capa =1 ?
+        if it['int_repair_capa'] == 1:
+            db.execute('UPDATE item SET repair_int=1 WHERE id=?', (item_id,))
+        else:
+            db.execute('UPDATE item SET prepa_st=1 WHERE id=?', (item_id,))
+        
+        _set_status(item_id, 'Attente Emballage')
+        _movement(item_id, 'RETOUR_ATELIER_OK', from_id=it['location_id'])
+        flash('Retour Atelier OK → Attente Emballage', 'ok')
+        return redirect(url_for('work_retour_atelier'))
+    
+    # 7. ATTENTE RAC / POSTE EMBALLAGE
     @app.route('/work/rac', methods=['GET', 'POST'])
     @login_required
     @role_required('rac', 'admin')
@@ -1122,7 +1351,7 @@ def create_app():
             items = db.execute("""
                 SELECT i.*, l.code AS loc_code
                 FROM item i LEFT JOIN location l ON i.location_id=l.id
-                WHERE i.active=1 AND i.status='Poste emballage'
+                WHERE i.active=1 AND i.status='Attente Emballage'
                 ORDER BY i.created_at ASC
             """).fetchall()
             return abort(404)
@@ -1135,7 +1364,7 @@ def create_app():
         it = item_by_id(item_id)
         if not it or it['active'] != 1:
             abort(404)
-        if it['status'] != 'Poste emballage':
+        if it['status'] != 'Attente Emballage':
             flash('Statut invalide', 'error')
             return redirect(url_for('work_emballage'))
         
@@ -1153,22 +1382,13 @@ def create_app():
         it = item_by_id(item_id)
         if not it or it['active'] != 1:
             abort(404)
-        if it['status'] != 'Poste emballage':
+        if it['status'] != 'Attente Emballage':
             flash('Statut invalide', 'error')
             return redirect(url_for('work_emballage'))
         
-        is_repair_snpa = request.form.get('is_repair_snpa') == 'on'
-        
-        if is_repair_snpa:
-            db.execute('UPDATE item SET is_repair_snpa=1, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Attente SAP', item_id))
-            next_status = 'Attente SAP'
-        else:
-            db.execute('UPDATE item SET is_repair_snpa=0, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Input ST', item_id))
-            next_status = 'Input ST'
-        
-        _movement(item_id, f'EMBALLAGE_DECISION_{next_status}', from_id=it['location_id'])
-        db.commit()
-        flash(f'Direction: {next_status}', 'ok')
+        _set_status(item_id, 'Attente Expedition')
+        _movement(item_id, f'EMBALLAGE_OK', from_id=it['location_id'])
+        flash('Emballage OK → Attente Expedition', 'ok')
         return redirect(url_for('work_emballage'))
     
     # 7. ATTENTE SAP (Création Avis SAP)
@@ -1199,10 +1419,10 @@ def create_app():
             flash('Statut invalide', 'error')
             return redirect(url_for('work_sap'))
         
-        db.execute('UPDATE item SET sap_created=1, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Réparation SNPA', item_id))
+        db.execute('UPDATE item SET sap_created=1, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Disponible', item_id))
         _movement(item_id, 'SAP_CREATED', from_id=it['location_id'])
         db.commit()
-        flash('Avis SAP créé → Réparation SNPA', 'ok')
+        flash('Avis SAP créé → Disponible', 'ok')
         return redirect(url_for('work_sap'))
     
     # 8. RÉPARATION SNPA
@@ -1216,7 +1436,7 @@ def create_app():
             items = db.execute("""
                 SELECT i.*, l.code AS loc_code
                 FROM item i LEFT JOIN location l ON i.location_id=l.id
-                WHERE i.active=1 AND i.status='Réparation SNPA'
+                WHERE i.active=1 AND i.status='Attente Réparation'
                 ORDER BY i.created_at ASC
             """).fetchall()
             return abort(404)
@@ -1229,13 +1449,13 @@ def create_app():
         it = item_by_id(item_id)
         if not it or it['active'] != 1:
             abort(404)
-        if it['status'] != 'Réparation SNPA':
+        if it['status'] != 'Attente Réparation':
             flash('Statut invalide', 'error')
             return redirect(url_for('work_repair'))
         
-        _set_status(item_id, 'Attente inspection')
+        _set_status(item_id, 'Attente Emballage')
         _movement(item_id, 'REPAIR_OK', from_id=it['location_id'])
-        flash('Réparation OK → Attente inspection', 'ok')
+        flash('Réparation OK → Attente Emballage', 'ok')
         return redirect(url_for('work_repair'))
     
     @app.route('/items/<int:item_id>/repair_nogo', methods=['POST'])
@@ -1246,7 +1466,7 @@ def create_app():
         it = item_by_id(item_id)
         if not it or it['active'] != 1:
             abort(404)
-        if it['status'] != 'Réparation SNPA':
+        if it['status'] != 'Attente Réparation':
             flash('Statut invalide', 'error')
             return redirect(url_for('work_repair'))
         
@@ -1267,7 +1487,7 @@ def create_app():
             items = db.execute("""
                 SELECT i.*, l.code AS loc_code
                 FROM item i LEFT JOIN location l ON i.location_id=l.id
-                WHERE i.active=1 AND i.status IN ('Attente inspection', 'Attente photo RAC')
+                WHERE i.active=1 AND i.status IN ('Attente Inspection', 'Attente photo RAC')
                 ORDER BY i.created_at ASC
             """).fetchall()
             return abort(404)
@@ -1280,13 +1500,19 @@ def create_app():
         it = item_by_id(item_id)
         if not it or it['active'] != 1:
             abort(404)
-        if it['status'] not in ('Attente inspection', 'Attente photo RAC'):
+        if it['status'] not in ('Attente Inspection', 'Attente photo RAC'):
             flash('Statut invalide', 'error')
             return redirect(url_for('work_inspection'))
         
-        _set_status(item_id, 'Pool')
+        # TL10: inspection ok ? OK: TL11 Go Pool ?
+        if it['inspection_ok'] == 1:
+            next_status = 'Disponible' if it['prepa_st'] == 1 else 'Attente Emballage'
+        else:
+            next_status = 'Attente Emballage'
+        
+        _set_status(item_id, next_status)
         _movement(item_id, 'INSPECTION_OK', from_id=it['location_id'])
-        flash('Inspection OK → Pool', 'ok')
+        flash(f'Inspection OK → {next_status}', 'ok')
         return redirect(url_for('work_inspection'))
     
     @app.route('/items/<int:item_id>/inspection_nok', methods=['POST'])
@@ -1297,13 +1523,15 @@ def create_app():
         it = item_by_id(item_id)
         if not it or it['active'] != 1:
             abort(404)
-        if it['status'] not in ('Attente inspection', 'Attente photo RAC'):
+        if it['status'] not in ('Attente Inspection', 'Attente photo RAC'):
             flash('Statut invalide', 'error')
             return redirect(url_for('work_inspection'))
         
-        _set_status(item_id, 'Attente photo RAC')
+        # TL10 NOK: Photo_Ins =1 --> Attente_Photo
+        db.execute('UPDATE item SET photo_ins=1 WHERE id=?', (item_id,))
+        _set_status(item_id, 'Attente Photo')
         _movement(item_id, 'INSPECTION_NOK', from_id=it['location_id'])
-        flash('Inspection NOK → Att Photo RAC', 'ok')
+        flash('Inspection NOK → Attente Photo', 'nok')
         return redirect(url_for('work_inspection'))
     
     @app.route('/items/<int:item_id>/rac_retry_ok', methods=['POST'])
@@ -1352,7 +1580,7 @@ def create_app():
             items = db.execute("""
                 SELECT i.*, l.code AS loc_code
                 FROM item i LEFT JOIN location l ON i.location_id=l.id
-                WHERE i.active=1 AND i.status='Pool'
+                WHERE i.active=1 AND i.status='Attente Pool'
                 ORDER BY i.created_at ASC
             """).fetchall()
             return abort(404)
@@ -1365,14 +1593,13 @@ def create_app():
         it = item_by_id(item_id)
         if not it or it['active'] != 1:
             abort(404)
-        if it['status'] != 'Pool':
+        if it['status'] != 'Attente Pool':
             flash('Statut invalide', 'error')
             return redirect(url_for('work_pool'))
         
-        db.execute('UPDATE item SET pool_ok=1, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('Kardex Input', item_id))
+        _set_status(item_id, 'Disponible')
         _movement(item_id, 'POOL_YES', from_id=it['location_id'])
-        db.commit()
-        flash('Pool OUI → Kardex Input', 'ok')
+        flash('Pool OUI → Disponible', 'ok')
         return redirect(url_for('work_pool'))
     
     @app.route('/items/<int:item_id>/pool_no', methods=['POST'])
@@ -1383,13 +1610,13 @@ def create_app():
         it = item_by_id(item_id)
         if not it or it['active'] != 1:
             abort(404)
-        if it['status'] != 'Pool':
+        if it['status'] != 'Attente Pool':
             flash('Statut invalide', 'error')
             return redirect(url_for('work_pool'))
         
-        _set_status(item_id, 'Prison')
+        _set_status(item_id, 'Attente Prison')
         _movement(item_id, 'POOL_NO', from_id=it['location_id'])
-        flash('Pool NON → Prison', 'ok')
+        flash('Pool NON → Attente Prison', 'ok')
         return redirect(url_for('work_pool'))
     
     # 11. PRISON (Suppression / Retour Inspection)
@@ -1403,7 +1630,7 @@ def create_app():
             items = db.execute("""
                 SELECT i.*, l.code AS loc_code
                 FROM item i LEFT JOIN location l ON i.location_id=l.id
-                WHERE i.active=1 AND i.status='Prison'
+                WHERE i.active=1 AND i.status='Attente Prison'
                 ORDER BY i.created_at ASC
             """).fetchall()
             return abort(404)
@@ -1416,7 +1643,7 @@ def create_app():
         it = item_by_id(item_id)
         if not it or it['active'] != 1:
             abort(404)
-        if it['status'] != 'Prison':
+        if it['status'] != 'Attente Prison':
             flash('Statut invalide', 'error')
             return redirect(url_for('work_prison'))
         
@@ -1432,13 +1659,31 @@ def create_app():
         it = item_by_id(item_id)
         if not it or it['active'] != 1:
             abort(404)
-        if it['status'] != 'Prison':
+        if it['status'] != 'Attente Prison':
             flash('Statut invalide', 'error')
             return redirect(url_for('work_prison'))
         
-        _set_status(item_id, 'Attente inspection')
+        _set_status(item_id, 'Attente Inspection')
         _movement(item_id, 'PRISON_RETRY', from_id=it['location_id'])
-        flash('Prison Retry → Att Inspection', 'ok')
+        flash('Prison Retry → Attente Inspection', 'ok')
+        return redirect(url_for('work_prison'))
+    
+    @app.route('/items/<int:item_id>/prison_ok', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def prison_ok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Attente Prison':
+            flash('Statut invalide pour prison', 'error')
+            return redirect(url_for('work_prison'))
+        
+        log_delete(item_id, user=getattr(current_user, 'username', None))
+        db.execute('UPDATE item SET active=0, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('ARCHIVE', item_id))
+        db.commit()
+        flash('Prison OK → ARCHIVE', 'ok')
         return redirect(url_for('work_prison'))
     
     # 12. KARDEX & EXPEDITION
@@ -1452,10 +1697,29 @@ def create_app():
             items = db.execute("""
                 SELECT i.*, l.code AS loc_code
                 FROM item i LEFT JOIN location l ON i.location_id=l.id
-                WHERE i.active=1 AND i.status IN ('Kardex Input', 'Préparation ST', 'Kardex Output')
+                WHERE i.active=1 AND i.status IN ('Attente Kardex', 'Préparation ST', 'Kardex Output')
                 ORDER BY i.created_at ASC
             """).fetchall()
             return abort(404)
+    
+    @app.route('/items/<int:item_id>/kardex_ok', methods=['POST'])
+    @login_required
+    @role_required('kardex', 'admin')
+    def kardex_ok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Attente Kardex':
+            flash('Statut invalide pour kardex', 'error')
+            return redirect(url_for('work_kardex'))
+        
+        # Déterminer le prochain statut selon Prepa_ST
+        next_status = 'Attente Prison' if it['prepa_st'] == 1 else 'Attente Pool'
+        _set_status(item_id, next_status)
+        _movement(item_id, 'KARDEX_OK', from_id=it['location_id'])
+        flash(f'Kardex OK → {next_status}', 'ok')
+        return redirect(url_for('work_kardex'))
     
     @app.route('/items/<int:item_id>/kardex_std_exchange', methods=['POST'])
     @login_required
@@ -1606,25 +1870,44 @@ def create_app():
         db = get_db()
         
         if request.method == 'GET':
+            items = db.execute("""
+                SELECT i.*, l.code AS loc_code
+                FROM item i LEFT JOIN location l ON i.location_id=l.id
+                WHERE i.active=1 AND i.status='Attente Expedition'
+                ORDER BY i.created_at ASC
+            """).fetchall()
             client = db.execute("""
                 SELECT i.*, l.code AS loc_code
                 FROM item i LEFT JOIN location l ON i.location_id=l.id
-                WHERE i.active=1 AND i.status='Attente expédition client'
+                WHERE i.active=1 AND i.status='Attente Expe Client'
                 ORDER BY i.created_at ASC
             """).fetchall()
             st = db.execute("""
                 SELECT i.*, l.code AS loc_code
                 FROM item i LEFT JOIN location l ON i.location_id=l.id
-                WHERE i.active=1 AND i.status='Attente expédition ST'
-                ORDER BY i.created_at ASC
-            """).fetchall()
-            t2 = db.execute("""
-                SELECT i.*, l.code AS loc_code
-                FROM item i LEFT JOIN location l ON i.location_id=l.id
-                WHERE i.active=1 AND i.status='Attente départ T2'
+                WHERE i.active=1 AND i.status='Attente Expe ST'
                 ORDER BY i.created_at ASC
             """).fetchall()
             return abort(404)
+
+    @app.route('/items/<int:item_id>/expedition_ok', methods=['POST'])
+    @login_required
+    @role_required('expedition', 'admin')
+    def expedition_ok(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1:
+            abort(404)
+        if it['status'] != 'Attente Expedition':
+            flash('Statut invalide pour expedition', 'error')
+            return redirect(url_for('work_expe'))
+        
+        # TL8: Return_ST =1 Or Repair_INT =1
+        next_status = 'Attente Expe Client' if (it['return_st'] == 1 or it['repair_int'] == 1) else 'Attente Expe ST'
+        _set_status(item_id, next_status)
+        _movement(item_id, 'EXPEDITION_OK', from_id=it['location_id'])
+        flash(f'Expedition OK → {next_status}', 'ok')
+        return redirect(url_for('work_expe'))
 
     @app.route('/items/<int:item_id>/expe_ship', methods=['POST'])
     @login_required
@@ -1637,20 +1920,24 @@ def create_app():
         
         kind = (request.form.get('kind') or 'client')
         valid = {
-            'client': 'Attente expédition client',
-            'st': 'Attente expédition ST',
-            't2': 'Attente départ T2'
+            'client': 'Attente Expe Client',
+            'st': 'Attente Expe ST'
         }
         
-        if it['status'] != valid.get(kind):
+        if it['status'] not in valid.values():
             flash('Statut invalide pour expédition', 'error')
             return redirect(url_for('work_expe'))
         
         _movement(item_id, f'EXPE_{kind.upper()}', from_id=it['location_id'])
-        log_delete(item_id, user=getattr(current_user, 'username', None))
-        db.execute('UPDATE item SET active=0, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('ARCHIVE', item_id))
-        db.commit()
-        flash('Expédition effectuée → Item supprimé (logique)', 'ok')
+        if kind == 'st':
+            # Attente Return_ST --> Reception
+            _set_status(item_id, 'Attente Réception')
+            flash('Exp ST → Attente Réception', 'ok')
+        else:
+            log_delete(item_id, user=getattr(current_user, 'username', None))
+            db.execute('UPDATE item SET active=0, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', ('ARCHIVE', item_id))
+            db.commit()
+            flash('Exp Client → ARCHIVE', 'ok')
         return redirect(url_for('work_expe'))
 
     # ===================== WORKFLOWS & VISUALIZATION ===============================

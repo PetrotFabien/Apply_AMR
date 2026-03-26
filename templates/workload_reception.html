@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% block title %}Pilotage Réception{% endblock %}
+
+{% block content %}
+
+<h2>📥 Pilotage Réception</h2>
+
+<div class="stats-section">
+    <div class="stat-card">
+        <h3>{{ items|length }}</h3>
+        <p>Articles en attente</p>
+    </div>
+</div>
+
+{% if items %}
+<div class="workflow-section">
+    <h3>Articles à traiter</h3>
+    <div class="items-grid">
+        {% for item in items %}
+        <div class="item-card reception-card">
+            <div class="item-header">
+                <h4>{{ item.sku }}</h4>
+                <span class="item-status status-attente">Attente Réception</span>
+            </div>
+
+            <div class="item-details">
+                <div class="detail-row">
+                    <span class="label">PN:</span>
+                    <span class="value">{{ item.pn or '-' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">SN:</span>
+                    <span class="value">{{ item.serial_number or '-' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">TSN:</span>
+                    <span class="value">{{ item.tsn or '-' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">CSN:</span>
+                    <span class="value">{{ item.csn or '-' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Taille:</span>
+                    <span class="value">{{ item.size }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Créé le:</span>
+                    <span class="value">{{ item.created_at }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Emplacement:</span>
+                    <span class="value">{{ item.loc_code or '-' }}</span>
+                </div>
+            </div>
+
+            <div class="item-flags">
+                <div class="flag-indicator {% if item.return_st %}flag-active{% endif %}">
+                    <span class="flag-icon">🔄</span>
+                    <span class="flag-label">Return ST</span>
+                </div>
+                <div class="flag-indicator {% if item.sous_douane %}flag-active{% endif %}">
+                    <span class="flag-icon">🛃</span>
+                    <span class="flag-label">Sous Douane</span>
+                </div>
+                <div class="flag-indicator {% if item.st_repair %}flag-active{% endif %}">
+                    <span class="flag-icon">🔧</span>
+                    <span class="flag-label">ST Repair</span>
+                </div>
+                <div class="flag-indicator {% if item.hors_gabarit %}flag-active{% endif %}">
+                    <span class="flag-icon">📏</span>
+                    <span class="flag-label">Hors Gabarit</span>
+                </div>
+            </div>
+
+            <div class="workflow-decision">
+                <p class="decision-hint">
+                    {% if item.return_st %}
+                    Return ST → {% if item.sous_douane %}Attente Douane{% else %}Attente Inspection{% endif %}
+                    {% else %}
+                    Nouvelle entrée → {% if item.sous_douane %}Attente Douane{% else %}Attente Photo{% endif %}
+                    {% endif %}
+                </p>
+            </div>
+
+            <div class="item-actions">
+                <form method="post" action="{{ url_for('reception_ok', item_id=item.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-success">
+                        <span class="btn-icon">✅</span>
+                        Valider Réception
+                    </button>
+                </form>
+                <form method="post" action="{{ url_for('reception_nok', item_id=item.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <span class="btn-icon">❌</span>
+                        Rejeter
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">📦</div>
+    <h3>Aucun article en attente</h3>
+    <p>Tous les articles ont été traités ou il n'y a pas d'arrivages en cours.</p>
+    <a href="{{ url_for('work_reception') }}" class="btn btn-primary">Créer un nouvel article</a>
+</div>
+{% endif %}
+
+<style>
+    .stats-section {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+        min-width: 120px;
+    }
+
+    .stat-card h3 {
+        margin: 0;
+        font-size: 2rem;
+        color: #495057;
+    }
+
+    .stat-card p {
+        margin: 0.5rem 0 0 0;
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    .items-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .reception-card {
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 1.5rem;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease;
+    }
+
+    .reception-card:hover {
+        border-color: #007bff;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .item-header h4 {
+        margin: 0;
+        color: #495057;
+        font-size: 1.2rem;
+    }
+
+    .status-attente {
+        background: #fff3cd;
+        color: #856404;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+
+    .item-details {
+        margin-bottom: 1rem;
+    }
+
+    .detail-row {
+        display: flex;
+        margin-bottom: 0.5rem;
+    }
+
+    .detail-row .label {
+        font-weight: bold;
+        min-width: 100px;
+        color: #495057;
+    }
+
+    .detail-row .value {
+        color: #6c757d;
+    }
+
+    .item-flags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .flag-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        background: #f8f9fa;
+        color: #6c757d;
+        font-size: 0.8rem;
+    }
+
+    .flag-active {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .workflow-decision {
+        background: #f8f9fa;
+        padding: 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        border-left: 4px solid #007bff;
+    }
+
+    .decision-hint {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #495057;
+        font-weight: 500;
+    }
+
+    .item-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-success {
+        background: #28a745;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #218838;
+        transform: translateY(-1px);
+    }
+
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #c82333;
+        transform: translateY(-1px);
+    }
+
+    .btn-primary {
+        background: #007bff;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #0056b3;
+    }
+
+    .btn-icon {
+        font-size: 1rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        background: #f8f9fa;
+        border-radius: 12px;
+        border: 2px dashed #dee2e6;
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+        color: #6c757d;
+        margin-bottom: 1.5rem;
+    }
+</style>
+
+{% endblock %}

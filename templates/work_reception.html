@@ -1,0 +1,502 @@
+{% extends "base.html" %}
+{% block title %}Réception - Point d'entrée{% endblock %}
+
+{% block content %}
+
+<h2>📥 Réception - Point d'entrée</h2>
+
+<div class="reception-form-container">
+    <div class="form-section">
+        <h3>Créer un nouvel article ou traiter un retour ST</h3>
+        <p class="form-description">
+            <strong>Nouvel article</strong> : Cochez "Return ST" si c'est un retour de sous-traitance (l'article
+            existant sera récupéré).<br>
+            <strong>Retour ST</strong> : L'article existant sera remis dans le workflow selon les flags.
+        </p>
+
+        <form method="post" class="reception-form">
+            <div class="form-grid">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <p>Le SKU est généré automatiquement en création. Laisser vide ou scanner un QR Code pour remplir.
+                    </p>
+                </div>
+                <input type="hidden" id="sku" name="sku" value="">
+
+                <div class="form-group">
+                    <label for="qrcode_url">QR Code Dynamics365 URL</label>
+                    <input type="url" id="qrcode_url" name="qrcode_url" placeholder="https://..." maxlength="250">
+                </div>
+
+                <div class="form-group">
+                    <label for="pn">PN</label>
+                    <input type="text" id="pn" name="pn" placeholder="Numéro de pièce" maxlength="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="serial_number">SN (Numéro de série)</label>
+                    <input type="text" id="serial_number" name="serial_number" placeholder="Numéro de série"
+                        maxlength="150">
+                </div>
+
+                <div class="form-group">
+                    <label for="tsn">TSN (Temps en service)</label>
+                    <input type="number" id="tsn" name="tsn" placeholder="Heures" min="0" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="csn">CSN (Cycle en service)</label>
+                    <input type="number" id="csn" name="csn" placeholder="Cycles" min="0" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="size">Taille <span class="required">*</span></label>
+                    <select id="size" name="size" required>
+                        <option value="PETIT">PETIT</option>
+                        <option value="GRAND">GRAND</option>
+                        <option value="HORS GABARIT">HORS GABARIT</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="avis_no">Avis N°</label>
+                    <input type="text" id="avis_no" name="avis_no" placeholder="Numéro d'avis" maxlength="50">
+                </div>
+
+                <div class="form-group">
+                    <label for="order_no">Commande N°</label>
+                    <input type="text" id="order_no" name="order_no" placeholder="Numéro de commande" maxlength="50">
+                </div>
+
+                <div class="form-group">
+                    <label for="bl_no">BL N°</label>
+                    <input type="text" id="bl_no" name="bl_no" placeholder="Numéro de BL" maxlength="50">
+                </div>
+            </div>
+
+            <div class="flags-section">
+                <h4>Flags du workflow</h4>
+                <div class="flags-grid">
+                    <div class="flag-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="return_st" value="on">
+                            <span class="checkmark"></span>
+                            Return ST
+                        </label>
+                        <small class="flag-description">Article retour de ST</small>
+                    </div>
+
+                    <div class="flag-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="sous_douane" value="on">
+                            <span class="checkmark"></span>
+                            Sous Douane
+                        </label>
+                        <small class="flag-description">Nécessite contrôle douane</small>
+                    </div>
+
+                    <div class="flag-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="st_repair" value="on">
+                            <span class="checkmark"></span>
+                            ST Repair
+                        </label>
+                        <small class="flag-description">Réparation ST nécessaire</small>
+                    </div>
+
+                    <div class="flag-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="st_repair" value="on">
+                            <span class="checkmark"></span>
+                            ST Repair
+                        </label>
+                        <small class="flag-description">Réparation ST nécessaire</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workflow-preview">
+                <h4>Aperçu du workflow</h4>
+                <div id="workflow-preview-content">
+                    <p class="preview-text">Sélectionnez les flags pour voir le chemin workflow</p>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-success btn-large">
+                    <span class="btn-icon">📦</span>
+                    Créer et router l'article
+                </button>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                    <span class="btn-icon">←</span>
+                    Retour à l'accueil
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="info-section">
+        <div class="info-card">
+            <h4>📋 Processus de réception</h4>
+            <ul>
+                <li><strong>Nouvel article</strong> : Création d'un nouvel item dans le système</li>
+                <li><strong>Retour ST</strong> : Récupération d'un article existant (pas de création)</li>
+                <li><strong>Routing automatique</strong> : Direction selon les flags cochés</li>
+                <li><strong>Traitement immédiat</strong> : Intégration directe dans le workflow</li>
+            </ul>
+        </div>
+
+        <div class="info-card">
+            <h4>🎯 Règles de routing</h4>
+            <div class="routing-rules">
+                <div class="rule">
+                    <strong>Return ST (récupération)</strong><br>
+                    <span class="arrow">→</span> Attente Douane (si Sous Douane) ou Attente Inspection
+                </div>
+                <div class="rule">
+                    <strong>Nouvel article</strong><br>
+                    <span class="arrow">→</span> Attente Douane (si Sous Douane) ou Attente Photo
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .reception-form-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+        align-items: start;
+    }
+
+    .form-section {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-description {
+        color: #6c757d;
+        margin-bottom: 2rem;
+        line-height: 1.5;
+    }
+
+    .reception-form {
+        max-width: none;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #495057;
+    }
+
+    .form-group input,
+    .form-group select {
+        padding: 0.75rem;
+        border: 2px solid #dee2e6;
+        border-radius: 6px;
+        font-size: 1rem;
+        transition: border-color 0.2s ease;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    }
+
+    .required {
+        color: #dc3545;
+    }
+
+    .flags-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .flags-section h4 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        color: #495057;
+    }
+
+    .flags-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .flag-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+        display: none;
+    }
+
+    .checkmark {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #dee2e6;
+        border-radius: 4px;
+        margin-right: 0.75rem;
+        position: relative;
+        transition: all 0.2s ease;
+    }
+
+    .checkbox-label input[type="checkbox"]:checked+.checkmark {
+        background: #28a745;
+        border-color: #28a745;
+    }
+
+    .checkbox-label input[type="checkbox"]:checked+.checkmark::after {
+        content: '✓';
+        position: absolute;
+        top: -2px;
+        left: 2px;
+        color: white;
+        font-weight: bold;
+    }
+
+    .flag-description {
+        color: #6c757d;
+        font-size: 0.85rem;
+        margin-left: 28px;
+    }
+
+    .workflow-preview {
+        background: #e9ecef;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .workflow-preview h4 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        color: #495057;
+    }
+
+    .preview-text {
+        margin: 0;
+        color: #6c757d;
+        font-style: italic;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 200px;
+        justify-content: center;
+    }
+
+    .btn-success {
+        background: #28a745;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #218838;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+    }
+
+    .btn-large {
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+    }
+
+    .btn-icon {
+        font-size: 1.2rem;
+    }
+
+    .info-section {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .info-card h4 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        color: #495057;
+    }
+
+    .info-card ul {
+        margin: 0;
+        padding-left: 1.5rem;
+    }
+
+    .info-card li {
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+    }
+
+    .routing-rules {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .rule {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 6px;
+        border-left: 4px solid #007bff;
+    }
+
+    .rule strong {
+        color: #495057;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .arrow {
+        color: #28a745;
+        font-size: 1.2rem;
+        margin-right: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .reception-form-container {
+            grid-template-columns: 1fr;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .flags-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .btn {
+            width: 100%;
+            max-width: 300px;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const returnStCheckbox = document.querySelector('input[name="return_st"]');
+        const sousDouaneCheckbox = document.querySelector('input[name="sous_douane"]');
+        const previewContent = document.getElementById('workflow-preview-content');
+
+        function updatePreview() {
+            const returnSt = returnStCheckbox.checked;
+            const sousDouane = sousDouaneCheckbox.checked;
+
+            let nextStep = '';
+            let description = '';
+            let actionType = '';
+
+            if (returnSt) {
+                actionType = 'Récupération article existant';
+                if (sousDouane) {
+                    nextStep = 'Attente Douane';
+                    description = 'Retour ST avec contrôle douane requis';
+                } else {
+                    nextStep = 'Attente Inspection';
+                    description = 'Retour ST - contrôle qualité nécessaire';
+                }
+            } else {
+                actionType = 'Création nouvel article';
+                if (sousDouane) {
+                    nextStep = 'Attente Douane';
+                    description = 'Nouvel article avec contrôle douane';
+                } else {
+                    nextStep = 'Attente Photo';
+                    description = 'Nouvel article - prise de photo requise';
+                }
+            }
+
+            previewContent.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="font-size: 2rem;">${returnSt ? '🔄' : '📦'}</div>
+                <div>
+                    <strong style="color: #28a745; font-size: 1.1rem;">${nextStep}</strong><br>
+                    <small style="color: #6c757d;">${actionType}</small><br>
+                    <small style="color: #6c757d;">${description}</small>
+                </div>
+            </div>
+        `;
+        }
+
+        returnStCheckbox.addEventListener('change', updatePreview);
+        sousDouaneCheckbox.addEventListener('change', updatePreview);
+
+        // Update initial preview
+        updatePreview();
+    });
+</script>
+
+{% endblock %}

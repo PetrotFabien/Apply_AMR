@@ -4,11 +4,22 @@ import os
 DB_PATH = "/projects/apply-amr/data/stock.db"
 
 statuses = (
-    'Attente douane', 'Attente photo', 'Poste photo',
-    'Attente inspection', 'Attente RAC',
-    'Prison', 'Attente emballage', 'Emballage',
-    'Attente expédition client', 'Attente expédition ST', 'Attente départ T2',
-    'STOCK', 'NOGO', 'Supprimé'
+    'Attente Douane',
+    'Attente Photo',
+    'Attente Inspection',
+    'Attente Induction',
+    'NOGO',
+    'Depart Atelier',
+    'Attente Emballage',
+    'Attente Expedition',
+    'Attente Expe Client',
+    'Attente Expe ST',
+    'Retour Atelier',
+    'Prison',
+    'Disponible',
+    'Exp ST Return',
+    'ARCHIVE',
+    'STOCK'
 )
 status_check = ",".join([f"'{s}'" for s in statuses])
 
