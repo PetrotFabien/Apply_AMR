@@ -2,11 +2,21 @@ import os
 import sqlite3
 from datetime import datetime
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, g, abort, send_from_directory, flash
+from flask import Flask, render_template, request, redirect, url_for, g, abort, send_from_directory, flash, jsonify
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from mir_client import MiRClient
 from processus import Item, Location, can_move, choose_slot
+from authlib.integrations.flask_client import OAuth
+import requests
+import easyocr
+import numpy as np
+from io import BytesIO
+from PIL import Image
+
+# Outil OCR singleton pour éviter rechargements lourds à chaque requête
+OCR_READER = None
 
 # --- ROLES ACCEPTÉS DANS LE SYSTÈME ----------------------------------
 ROLES = [
@@ -87,6 +97,16 @@ def create_app():
     app.jinja_env.globals['ROLES'] = ROLES
     app.secret_key=os.environ.get('SECRET_KEY','dev-secret'); app.config['SESSION_COOKIE_SECURE']=SESSION_COOKIE_SECURE
 
+    # OIDC Setup
+    oauth = OAuth(app)
+    oauth.register(
+        name='safran',
+        client_id=os.getenv('OIDC_CLIENT_ID'),
+        client_secret=os.getenv('OIDC_CLIENT_SECRET'),
+        server_metadata_url=os.getenv('OIDC_METADATA_URL', 'https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration'),
+        client_kwargs={'scope': 'openid profile email'},
+    )
+
     def get_db():
         if 'db' not in g:
             g.db=sqlite3.connect(DATABASE,detect_types=sqlite3.PARSE_DECLTYPES); g.db.row_factory=sqlite3.Row
@@ -161,7 +181,7 @@ def create_app():
             tsn INTEGER,
             csn INTEGER,
             photo_path TEXT,
-            size TEXT CHECK(size IN ('GRAND','PETIT') OR size IS NULL),
+            size TEXT CHECK(size IN ('GRAND','PETIT','HORS GABARIT') OR size IS NULL),
             status TEXT NOT NULL CHECK(status IN ({status_check})),
             active INTEGER NOT NULL DEFAULT 1,
             st_repair INTEGER NOT NULL DEFAULT 0,
@@ -263,6 +283,8 @@ def create_app():
             db.execute("ALTER TABLE item ADD COLUMN induction INTEGER NOT NULL DEFAULT 0")
             db.execute("ALTER TABLE item ADD COLUMN induction_ok INTEGER NOT NULL DEFAULT 0")
             db.execute("ALTER TABLE item ADD COLUMN inspection_ok INTEGER NOT NULL DEFAULT 0")
+        if not col_exists('item', 'sous_douane'):
+            db.execute("ALTER TABLE item ADD COLUMN sous_douane INTEGER NOT NULL DEFAULT 0")
         db.commit()
 
     # 3) MIGRATION FORCÉE (détection large de l'ancien CHECK) --------------
@@ -292,7 +314,7 @@ def create_app():
                 tsn INTEGER,
                 csn INTEGER,
                 photo_path TEXT,
-                size TEXT CHECK(size IN ('GRAND','PETIT') OR size IS NULL),
+                size TEXT CHECK(size IN ('GRAND','PETIT','HORS GABARIT') OR size IS NULL),
                 status TEXT NOT NULL CHECK(status IN ({status_check})),
                 active INTEGER NOT NULL DEFAULT 1,
                 st_repair INTEGER NOT NULL DEFAULT 0,
@@ -515,6 +537,60 @@ def create_app():
             'csn': None
         }
 
+    def perform_ocr(image_path_or_bytes):
+        """Lecture de la plaque d'identification via OCR (easyocr)."""
+        global OCR_READER
+        try:
+            if OCR_READER is None:
+                # Chargement une fois au démarrage du serveur ou au premier appel OCR
+                OCR_READER = easyocr.Reader(['fr', 'en'], gpu=False)
+
+            if isinstance(image_path_or_bytes, bytes):
+                image = Image.open(BytesIO(image_path_or_bytes))
+            else:
+                image = Image.open(image_path_or_bytes)
+
+            image = image.convert('RGB')
+            image_np = np.array(image)
+            results = OCR_READER.readtext(image_np, detail=0)
+            extracted_text = '\n'.join(results)
+            return extracted_text
+        except Exception as e:
+            # Erreur claire pour debug + sensibilité du reverse proxy
+            return f"Erreur OCR: {str(e)}"
+
+    def call_orbitview_api(item_id):
+        """Appel à l'API OrbitView pour capturer les photos."""
+        try:
+            api_key = os.getenv('ORBITVIEW_API_KEY')
+            api_url = os.getenv('ORBITVIEW_API_URL', 'https://orbitview.example.com/api/capture')
+            
+            payload = {
+                'item_id': item_id,
+                'capture_type': 'equipment_identification',
+                'quality': 'high'
+            }
+            headers = {'Authorization': f'Bearer {api_key}'} if api_key else {}
+            
+            response = requests.post(api_url, json=payload, headers=headers, timeout=30)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return {'error': f'Status {response.status_code}: {response.text}'}
+        except Exception as e:
+            return {'error': f'Erreur API OrbitView: {str(e)}'}
+
+    def verify_item_info(item_data, ocr_text):
+        """Vérifier que les infos OCR correspondent aux données de l'item."""
+        matches = []
+        if item_data.get('sku') and item_data['sku'] in ocr_text:
+            matches.append({'field': 'SKU', 'status': 'OK', 'value': item_data['sku']})
+        if item_data.get('pn') and item_data['pn'] in ocr_text:
+            matches.append({'field': 'PN', 'status': 'OK', 'value': item_data['pn']})
+        if item_data.get('serial_number') and item_data['serial_number'] in ocr_text:
+            matches.append({'field': 'SN', 'status': 'OK', 'value': item_data['serial_number']})
+        return matches
+
 # ------ Décorateur role requirement -----#
 
     def role_required(*roles):
@@ -534,21 +610,59 @@ def create_app():
             return wrapper
         return decorator
 
-    # -------- Auth --------
-    @app.route('/login', methods=['GET','POST'])
+    # -------- Auth OIDC --------
+    @app.route('/login')
     def login():
-        if request.method=='POST':
-            username=(request.form.get('username') or '').strip(); password=(request.form.get('password') or '')
-            row=get_db().execute("SELECT * FROM user WHERE username=? AND active=1",(username,)).fetchone()
-            if row and row['password_hash'] and check_password_hash(row['password_hash'], password):
-                get_db().execute("UPDATE user SET last_login_at=CURRENT_TIMESTAMP WHERE id=?",(row['id'],)); get_db().commit()
-                login_user(SimpleUser(row), remember=False); flash('Connecté','ok'); return redirect(url_for('index'))
-            flash('Identifiants invalides','error')
-        return render_template('login.html')
+        redirect_uri = url_for('auth_callback', _external=True)
+        return oauth.safran.authorize_redirect(redirect_uri)
+
+    @app.route('/auth/callback')
+    def auth_callback():
+        try:
+            token = oauth.safran.authorize_access_token()
+            userinfo = oauth.safran.parse_id_token(token)
+            if not userinfo:
+                flash('Erreur d\'authentification OIDC', 'error')
+                return redirect(url_for('index'))
+
+            email = userinfo.get('email') or userinfo.get('preferred_username')
+            if not email:
+                flash('Email manquant dans le token OIDC', 'error')
+                return redirect(url_for('index'))
+
+            db = get_db()
+            row = db.execute('SELECT * FROM user WHERE email=?', (email,)).fetchone()
+            if not row:
+                # Créer un nouvel utilisateur avec rôle par défaut
+                username = userinfo.get('preferred_username') or email
+                display_name = userinfo.get('name') or username
+                db.execute("""
+                    INSERT INTO user(username, email, display_name, role, active, password_hash)
+                    VALUES (?, ?, ?, 'user', 1, NULL)
+                """, (username, email, display_name))
+                db.commit()
+                row = db.execute('SELECT * FROM user WHERE email=?', (email,)).fetchone()
+
+            if row and row['active']:
+                login_user(SimpleUser(row))
+                flash('Connecté via SSO', 'ok')
+                return redirect(url_for('index'))
+            else:
+                flash('Utilisateur inactif', 'error')
+                return redirect(url_for('index'))
+        except Exception as e:
+            flash(f'Erreur OIDC: {str(e)}', 'error')
+            return redirect(url_for('index'))
 
     @app.route('/logout')
     @login_required
-    def logout(): logout_user(); flash('Déconnecté','ok'); return redirect(url_for('login'))
+    def logout():
+        logout_user()
+        # Optionnel: logout du provider OIDC
+        logout_url = os.getenv('OIDC_LOGOUT_URL')
+        if logout_url:
+            return redirect(logout_url)
+        return redirect(url_for('index'))
 
     # -------- Index / Items / Item detail / Locations --------
     @app.route('/')
@@ -570,25 +684,11 @@ def create_app():
     def items():
         db=get_db()
         if request.method=='POST':
-            sku=(request.form.get('sku') or '').strip(); size=(request.form.get('size') or 'PETIT').upper()
-            pn=(request.form.get('pn') or '').strip() or None
-            serial_number=(request.form.get('serial_number') or '').strip() or None
-            tsn_raw=(request.form.get('tsn') or '').strip(); csn_raw=(request.form.get('csn') or '').strip()
-            tsn=int(tsn_raw) if tsn_raw.isdigit() else None
-            csn=int(csn_raw) if csn_raw.isdigit() else None
-            sous_douane=(request.form.get('sous_douane')=='on'); st_repair=1 if (request.form.get('st_repair')=='on') else 0
-            repair_snpa=1 if (request.form.get('repair_snpa')=='on') else 0
-            hors_gabarit=1 if (request.form.get('hors_gabarit')=='on') else 0
-            if size not in ('GRAND','PETIT'):
-                flash('Taille requise (GRAND/PETIT)','error'); return redirect(url_for('items'))
-            if not sku:
-                row=db.execute("SELECT sku FROM item WHERE sku LIKE 'SKU-%' ORDER BY CAST(SUBSTR(sku,5) AS INTEGER) DESC LIMIT 1").fetchone()
-                if row is None: sku='SKU-00001'
-                else:
-                    last=int(row['sku'].split('-')[1]); sku=f'SKU-{last+1:05d}'
+            sku = generate_sku()  # Toujours générer automatiquement
+            size=(request.form.get('size') or 'PETIT').upper()
             desc=(request.form.get('description') or '').strip(); avis=(request.form.get('avis_no') or '').strip() or None
             od=(request.form.get('order_no') or '').strip() or None; bl=(request.form.get('bl_no') or '').strip() or None
-            status='Attente douane' if sous_douane else 'Attente photo'
+            status='Attente Douane' if sous_douane else 'Attente Photo'
             db.execute("""
                 INSERT INTO item(
                     sku, pn, description, serial_number, tsn, csn, size,
@@ -875,15 +975,15 @@ def create_app():
     @role_required('douane', 'admin')
     def workload_douane():
         db = get_db()
-        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente douane' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente Douane' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
         return render_template('workload_douane.html', items=items)
 
     @app.route('/workload/photo')
     @login_required
-    @role_required('photo', 'admin')
+    @role_required('photo', 'admin', 'user')
     def workload_photo():
         db = get_db()
-        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente photo' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente Photo' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
         return render_template('workload_photo.html', items=items)
 
     @app.route('/workload/inspection')
@@ -891,7 +991,7 @@ def create_app():
     @role_required('inspection', 'admin')
     def workload_inspection():
         db = get_db()
-        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente inspection' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente Inspection' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
         return render_template('workload_inspection.html', items=items)
 
     @app.route('/workload/rac')
@@ -899,7 +999,7 @@ def create_app():
     @role_required('rac', 'admin')
     def workload_rac():
         db = get_db()
-        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente rac' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente RAC' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
         return render_template('workload_rac.html', items=items)
 
     @app.route('/workload/emballage')
@@ -907,7 +1007,7 @@ def create_app():
     @role_required('emballage', 'admin')
     def workload_emballage():
         db = get_db()
-        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente emballage' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente Emballage' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
         return render_template('workload_emballage.html', items=items)
 
     @app.route('/workload/expe')
@@ -915,7 +1015,7 @@ def create_app():
     @role_required('expedition', 'admin')
     def workload_expe():
         db = get_db()
-        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente expe' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
+        items = db.execute("SELECT i.*, l.code AS loc_code FROM item i LEFT JOIN location l ON i.location_id=l.id WHERE i.status='Attente Expedition' AND i.active=1 ORDER BY i.created_at ASC").fetchall()
         return render_template('workload_expe.html', items=items)
 
     @app.route('/workload/repair')
@@ -981,14 +1081,6 @@ def create_app():
         st_repair = 1 if (request.form.get('st_repair') == 'on') else 0
         repair_snpa = 0  # SNPA décision en induction, pas à la création
         
-        if not sku:
-            flash('SKU requis', 'error')
-            return redirect(url_for('work_reception'))
-        
-        if size not in ('GRAND', 'PETIT', 'HORS GABARIT'):
-            flash('Taille requise (GRAND/PETIT/HORS GABARIT)', 'error')
-            return redirect(url_for('work_reception'))
-
         # Remplissage depuis Dynamics365 (QR Code) si disponible
         dynamics_info = fetch_dynamics_info(qrcode_url)
         if dynamics_info:
@@ -1006,6 +1098,14 @@ def create_app():
         # Si le SKU est manquant : auto-génération
         if not sku:
             sku = generate_sku()
+        
+        if not sku:
+            flash('Erreur génération SKU', 'error')
+            return redirect(url_for('work_reception'))
+        
+        if size not in ('GRAND', 'PETIT', 'HORS GABARIT'):
+            flash('Taille requise (GRAND/PETIT/HORS GABARIT)', 'error')
+            return redirect(url_for('work_reception'))
 
         # Logique de réception : création ou récupération selon return_st
         if return_st == 1:
@@ -1057,10 +1157,10 @@ def create_app():
                 INSERT INTO item(
                     sku, pn, serial_number, tsn, csn, size,
                     avis_no, order_no, bl_no,
-                    status, st_repair, repair_snpa, return_st,
+                    status, st_repair, repair_snpa, return_st, sous_douane,
                     active, location_id
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, (sku, pn, serial_number, tsn, csn, size, avis, od, bl, initial_status, st_repair, repair_snpa, return_st, 1, None))
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """, (sku, pn, serial_number, tsn, csn, size, avis, od, bl, initial_status, st_repair, repair_snpa, return_st, sous_douane, 1, None))
             
             new_id = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
             flash(f'Article créé: {sku} (Status: {initial_status})', 'ok')
@@ -1077,10 +1177,10 @@ def create_app():
             items = db.execute("""
                 SELECT i.*, l.code AS loc_code
                 FROM item i LEFT JOIN location l ON i.location_id=l.id
-                WHERE i.active=1 AND i.status='Attente douane'
+                WHERE i.active=1 AND i.status='Attente Douane'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return abort(404)
+            return render_template('workload_douane.html', items=items)
     
     @app.route('/items/<int:item_id>/douane_ok', methods=['POST'])
     @login_required
@@ -1114,7 +1214,7 @@ def create_app():
             return redirect(url_for('work_douane'))
         
         # Déterminer le prochain statut selon Sous Douane
-        next_status = 'Attente Réparation' if it['sous_douane'] == 1 else 'Attente Emballage'
+        next_status = 'Attente Photo' if it['sous_douane'] == 1 else 'Attente Emballage'
         _set_status(item_id, next_status)
         _movement(item_id, 'DOUANE_NOK', from_id=it['location_id'])
         flash(f'Douane NOK → {next_status}', 'nok')
@@ -1153,7 +1253,65 @@ def create_app():
                 WHERE i.active=1 AND i.status='Attente Photo'
                 ORDER BY i.created_at ASC
             """).fetchall()
-            return abort(404)
+            return render_template('workload_photo.html', items=items)
+
+    @app.route('/work/photo/<int:item_id>', methods=['GET', 'POST'])
+    @login_required
+    @role_required('photo', 'admin')
+    def photo_station(item_id):
+        db = get_db()
+        it = item_by_id(item_id)
+        if not it or it['active'] != 1 or it['status'] != 'Attente Photo':
+            abort(404)
+        
+        if request.method == 'GET':
+            return render_template('photo_station.html', item=it)
+        
+        # POST: Traitement photos et OCR
+        action = request.form.get('action')
+        
+        if action == 'capture':
+            # Appel API OrbitView
+            orbitview_result = call_orbitview_api(item_id)
+            if 'error' in orbitview_result:
+                flash(f'Erreur capture: {orbitview_result["error"]}', 'error')
+            else:
+                flash('Photos capturées avec succès', 'ok')
+                # Sauvegarder URL photo si fournie
+                photo_url = orbitview_result.get('photo_url')
+                if photo_url:
+                    db.execute('UPDATE item SET photo_path=? WHERE id=?', (photo_url, item_id))
+                    db.commit()
+            return redirect(url_for('photo_station', item_id=item_id))
+        
+        elif action == 'ocr':
+            # Lecture OCR de la plaque
+            photo_file = request.files.get('plaque_photo')
+            if photo_file:
+                try:
+                    image_bytes = photo_file.read()
+                    ocr_text = perform_ocr(image_bytes)
+                    
+                    # Vérifier correspondance
+                    item_info = {'sku': it['sku'], 'pn': it['pn'], 'serial_number': it['serial_number']}
+                    verification = verify_item_info(item_info, ocr_text)
+                    
+                    return jsonify({
+                        'ocr_text': ocr_text,
+                        'verification': verification,
+                        'status': 'ok'
+                    })
+                except Exception as e:
+                    return jsonify({'error': str(e), 'status': 'error'})
+            return jsonify({'error': 'Pas de fichier fourni', 'status': 'error'})
+        
+        elif action == 'validate':
+            # Valider et passer à l'étape suivante
+            next_status = 'Prison' if it['photo_ins'] == 1 else 'Attente Induction'
+            _set_status(item_id, next_status)
+            _movement(item_id, 'PHOTO_OK', from_id=it['location_id'])
+            flash(f'Photo validée → {next_status}', 'ok')
+            return redirect(url_for('work_photo'))
     
     @app.route('/items/<int:item_id>/photo_ok', methods=['POST'])
     @login_required

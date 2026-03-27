@@ -13,9 +13,11 @@
         <tr>
             <th>SKU</th>
             <th>PN</th>
+            <th>SN</th>
             <th>Taille</th>
             <th>Créé le</th>
             <th>Emplacement</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -23,15 +25,28 @@
         <tr>
             <td>{{ item.sku }}</td>
             <td>{{ item.pn or '-' }}</td>
+            <td>{{ item.serial_number or '-' }}</td>
             <td>{{ item.size }}</td>
             <td>{{ item.created_at }}</td>
             <td>{{ item.loc_code or '-' }}</td>
+            <td>
+                <a href="{{ url_for('photo_station', item_id=item.id) }}" class="btn btn-primary btn-sm">
+                    📸 Poste Photo
+                </a>
+            </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 {% else %}
-<p class="muted">Aucun article en attente.</p>
+<p class="muted">Aucun article en attente photo.</p>
 {% endif %}
+
+<style>
+    .btn-sm {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.9rem;
+    }
+</style>
 
 {% endblock %}

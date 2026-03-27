@@ -1,1 +1,5 @@
-{% extends 'base.html' %}{% block title %}Connexion{% endblock %}{% block content %}<h2>🔐 Connexion</h2><form method='post' class='card' style='max-width:420px'><label>Identifiant</label><input name='username' required><label>Mot de passe</label><input type='password' name='password' required><button type='submit'>Se connecter</button></form><p class='muted'>Besoin d'un compte ? Demandez à un administrateur de vous créer un accès.</p>{% endblock %}
+{% extends 'base.html' %}{% block title %}Connexion{% endblock %}{% block content %}<h2>🔐 Connexion SSO</h2>
+<div class='card' style='max-width:420px'>
+    <p>Vous allez être redirigé vers l'authentification Safran SSO.</p><a href="{{ url_for('login') }}"
+        class="btn btn-primary">Se connecter via SSO</a>
+</div>{% endblock %}

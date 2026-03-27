@@ -16,6 +16,7 @@
             <th>Taille</th>
             <th>Créé le</th>
             <th>Emplacement</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -26,12 +27,31 @@
             <td>{{ item.size }}</td>
             <td>{{ item.created_at }}</td>
             <td>{{ item.loc_code or '-' }}</td>
+            <td>
+                <form method="post" action="{{ url_for('douane_ok', item_id=item.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-success btn-sm" title="Sortie de Douane">
+                        ✅ Sortie Douane
+                    </button>
+                </form>
+                <form method="post" action="{{ url_for('douane_nok', item_id=item.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger btn-sm" title="Rejeter">
+                        ❌ Rejeter
+                    </button>
+                </form>
+            </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 {% else %}
-<p class="muted">Aucun article en attente.</p>
+<p class="muted">Aucun article en attente douane.</p>
 {% endif %}
+
+<style>
+    .btn-sm {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.9rem;
+    }
+</style>
 
 {% endblock %}

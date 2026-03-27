@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+{% block title %}Poste Photo - {{ item.sku }}{% endblock %}
+
+{% block content %}
+
+<h2>📸 Poste Photo</h2>
+
+<div class="photo-station-container">
+    <!-- INFOS ITEM -->
+    <div class="item-info-panel">
+        <h3>{{ item.sku }}</h3>
+        <table class="info-table">
+            <tr>
+                <td><strong>PN:</strong></td>
+                <td>{{ item.pn or '-' }}</td>
+            </tr>
+            <tr>
+                <td><strong>SN:</strong></td>
+                <td>{{ item.serial_number or '-' }}</td>
+            </tr>
+            <tr>
+                <td><strong>TSN:</strong></td>
+                <td>{{ item.tsn or '-' }}</td>
+            </tr>
+            <tr>
+                <td><strong>CSN:</strong></td>
+                <td>{{ item.csn or '-' }}</td>
+            </tr>
+            <tr>
+                <td><strong>Taille:</strong></td>
+                <td>{{ item.size }}</td>
+            </tr>
+            <tr>
+                <td><strong>Status:</strong></td>
+                <td>{{ item.status }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- INTERFACE PHOTO -->
+    <div class="photo-interface">
+        <!-- 1. CAPTURE PHOTOS -->
+        <div class="photo-section">
+            <h4>1️⃣ Capture Photos</h4>
+            <form method="post" action="{{ url_for('photo_station', item_id=item.id) }}">
+                <input type="hidden" name="action" value="capture">
+                <p class="section-desc">Cliquez pour capturer les photos via l'API OrbitView</p>
+                <button type="submit" class="btn btn-info">📷 Capturer via OrbitView</button>
+            </form>
+        </div>
+
+        <!-- 2. SCANNER DOCUMENTS -->
+        <div class="photo-section">
+            <h4>2️⃣ Documents</h4>
+            <p class="section-desc">Scannez les documents associés</p>
+            <input type="file" id="doc-scanner" accept="application/pdf,image/*" placeholder="Scanner document">
+            <button type="button" class="btn btn-secondary" onclick="uploadDocument()">📄 Ajouter Document</button>
+            <div id="documents-list" style="margin-top: 1rem;"></div>
+        </div>
+
+        <!-- 3. PLAQUE D'IDENTIFICATION OCR -->
+        <div class="photo-section ocr-section">
+            <h4>3️⃣ Plaque d'Identification (OCR)</h4>
+            <p class="section-desc">Uploadez la première photo (plaque d'identification) pour lecture OCR</p>
+
+            <div class="ocr-upload">
+                <input type="file" id="plaque-photo" accept="image/*" placeholder="Photo plaque">
+                <button type="button" class="btn btn-primary" onclick="performOCR()">🔍 Lire OCR</button>
+            </div>
+
+            <div id="ocr-results" style="display: none; margin-top: 1rem;">
+                <div class="ocr-text-box">
+                    <h5>Texte OCR:</h5>
+                    <p id="ocr-text-output"></p>
+                </div>
+
+                <div class="verification-box">
+                    <h5>✓ Vérification Informations:</h5>
+                    <table id="verification-table" class="verification-table">
+                        <tr>
+                            <th>Champ</th>
+                            <th>Statut</th>
+                            <th>Valeur</th>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. VALIDATION -->
+        <div class="photo-section validation-section">
+            <h4>4️⃣ Validation & Fin</h4>
+            <form method="post" action="{{ url_for('photo_station', item_id=item.id) }}">
+                <input type="hidden" name="action" value="validate">
+                <p class="section-desc">Validez et passez à l'étape suivante</p>
+                <button type="submit" class="btn btn-success btn-large">✅ Valider & Passer Induction</button>
+            </form>
+        </div>
+
+        <!-- RETOUR -->
+        <a href="{{ url_for('work_photo') }}" class="btn btn-secondary" style="margin-top: 2rem;">← Retour Workload</a>
+    </div>
+</div>
+
+<style>
+    .photo-station-container {
+        display: grid;
+        grid-template-columns: 250px 1fr;
+        gap: 2rem;
+        margin-top: 1.5rem;
+    }
+
+    .item-info-panel {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        height: fit-content;
+        position: sticky;
+        top: 20px;
+    }
+
+    .item-info-panel h3 {
+        margin-top: 0;
+        color: #2c3e50;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 0.75rem;
+    }
+
+    .info-table {
+        width: 100%;
+        font-size: 0.9rem;
+    }
+
+    .info-table td {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .photo-interface {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .photo-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .photo-section h4 {
+        margin-top: 0;
+        color: #2c3e50;
+        border-left: 4px solid #007bff;
+        padding-left: 1rem;
+    }
+
+    .section-desc {
+        color: #666;
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+    }
+
+    .ocr-upload {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .ocr-upload input[type="file"] {
+        flex: 1;
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    #ocr-results {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+
+    .ocr-text-box {
+        background: white;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+        max-height: 300px;
+        overflow-y: auto;
+        border-left: 4px solid #28a745;
+    }
+
+    .ocr-text-box h5 {
+        margin-top: 0;
+        color: #28a745;
+    }
+
+    .ocr-text-box p {
+        font-family: 'Courier New', monospace;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        margin: 0;
+    }
+
+    .verification-box {
+        background: white;
+        padding: 1rem;
+        border-radius: 4px;
+        border-left: 4px solid #ffc107;
+    }
+
+    .verification-box h5 {
+        margin-top: 0;
+        color: #ffc107;
+    }
+
+    .verification-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    .verification-table th,
+    .verification-table td {
+        padding: 0.5rem;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .verification-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+    }
+
+    .status-ok {
+        color: #28a745;
+        font-weight: bold;
+    }
+
+    .status-error {
+        color: #dc3545;
+        font-weight: bold;
+    }
+
+    .validation-section {
+        background: #e8f5e9;
+    }
+
+    .btn-large {
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        width: 100%;
+    }
+
+    .btn-info {
+        background: #17a2b8;
+        color: white;
+    }
+
+    .btn-info:hover {
+        background: #138496;
+    }
+</style>
+
+<script>
+    function performOCR() {
+        const fileInput = document.getElementById('plaque-photo');
+        if (!fileInput.files.length) {
+            alert('Veuillez sélectionner une image');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('plaque_photo', fileInput.files[0]);
+        formData.append('action', 'ocr');
+
+        fetch("{{ url_for('photo_station', item_id=item.id) }}", {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    document.getElementById('ocr-text-output').textContent = data.ocr_text;
+
+                    // Remplir tableau vérification
+                    const verifyTable = document.getElementById('verification-table');
+                    verifyTable.innerHTML = '<tr><th>Champ</th><th>Statut</th><th>Valeur</th></tr>';
+
+                    data.verification.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                        <td>${item.field}</td>
+                        <td><span class="status-ok">${item.status}</span></td>
+                        <td>${item.value}</td>
+                    `;
+                        verifyTable.appendChild(row);
+                    });
+
+                    document.getElementById('ocr-results').style.display = 'block';
+                } else {
+                    alert('Erreur OCR: ' + data.error);
+                }
+            })
+            .catch(error => alert('Erreur: ' + error));
+    }
+
+    function uploadDocument() {
+        const fileInput = document.getElementById('doc-scanner');
+        if (!fileInput.files.length) {
+            alert('Veuillez sélectionner un fichier');
+            return;
+        }
+
+        const fileName = fileInput.files[0].name;
+        const docList = document.getElementById('documents-list');
+        const docItem = document.createElement('div');
+        docItem.style.cssText = 'padding: 0.5rem; background: #f8f9fa; border-radius: 4px; margin-top: 0.5rem;';
+        docItem.textContent = '✓ ' + fileName;
+        docList.appendChild(docItem);
+
+        fileInput.value = '';
+    }
+</script>
+
+{% endblock %}
